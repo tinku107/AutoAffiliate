@@ -13,11 +13,10 @@ AutoAffiliate AI is an autonomous, multi-agent business operations team designed
    - Automatically tags all links with your Amazon Associate tag or EarnKaro tracking ID.
    - Calculates commission ROI and units needed to hit your daily ₹500 goal.
 
-2. **🎨 Creative Bot (Content Studio)**:
-   - Designs Instagram-ready 1080x1080 promotional graphics with discount badges and price tags using Pillow.
-   - Writes viral Indian shopping hooks, problem-solver storytelling captions, and 25-30 targeted hashtags.
-   - Drafts scene-by-scene 15-second viral Reel / Short scripts with audio hooks and on-screen text.
-   - Integrates the proven **Comment "LINK" for DM** conversion funnel.
+2. **🎨 Creative Bot (Content Studio & Video Engine)**:
+   - **AI Video Generator**: Generates 9:16 vertical MP4 video Reels with animated product motion, discount tags, price drops, and **neural Indian English voiceover narration** (via edge-tts & bundled ffmpeg).
+   - **Graphic Studio**: Designs Instagram-ready 1080x1080 promotional graphics with discount badges and price tags using Pillow.
+   - **Viral Copy & Funnels**: Writes psychological hooks, Indian audience captions, 25+ hashtags, and automates the **Comment "LINK" for DM** conversion funnel.
 
 3. **🚀 Marketer Bot (Distribution & Growth Radar)**:
    - Safely publishes posts to Instagram Business Accounts and Facebook Pages via Meta Graph API.

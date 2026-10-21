@@ -306,6 +306,11 @@ with tab_test:
 
         res_col_img, res_col_info = st.columns([1.5, 2.5])
         with res_col_img:
+            v_path = pst.get("video_path")
+            if v_path and os.path.exists(v_path):
+                st.video(v_path)
+                st.caption("🎬 Generated 9:16 AI Reel (With Neural Voiceover)")
+
             media = pst.get("media_paths", [])
             if media and os.path.exists(media[0]):
                 st.image(media[0], caption="Generated 1080x1080 Banner", use_container_width=True)
@@ -465,6 +470,11 @@ with tab_posts:
                 col_prev, col_body = st.columns([1.5, 2.5])
                 with col_prev:
                     st.markdown(f"#### Post #{post['id']}")
+                    vid_p = post.get("video_path")
+                    if vid_p and os.path.exists(vid_p):
+                        st.video(vid_p)
+                        st.caption("🎬 AI Reel Video (With Neural Voiceover)")
+
                     media_paths = post.get("media_paths", [])
                     if media_paths and os.path.exists(media_paths[0]):
                         st.image(media_paths[0], caption="Generated 1080x1080 Graphic Banner", use_container_width=True)

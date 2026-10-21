@@ -7,6 +7,7 @@ import os
 import random
 from typing import Dict, Any, Optional, List
 from tools.image_generator import ImageGenerator
+from tools.video_generator import VideoGenerator
 from core.db import save_post, update_product_status, log_agent_action
 
 
@@ -14,6 +15,7 @@ class CreativeAgent:
     def __init__(self, gemini_api_key: Optional[str] = None):
         self.name = "Creative (Content Studio)"
         self.image_gen = ImageGenerator()
+        self.video_gen = VideoGenerator()
         self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY", "")
 
     def generate_content_for_product(self, product: Dict[str, Any], post_type: str = "carousel") -> Dict[str, Any]:
@@ -124,6 +126,13 @@ Looking for the best deal online? This {short_title} is currently trending at an
   On-Screen Text: "COMMENT 'LINK' FOR DIRECT DM 📩"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
 
+        # 2. Generate AI Vertical 9:16 Reel Video with Voiceover
+        video_path = ""
+        try:
+            video_path = self.video_gen.generate_reel_video(product)
+        except Exception as e:
+            log_agent_action(self.name, f"Video generation note: {e}", "warning")
+
         post_data = {
             "product_id": product.get("id"),
             "platform": "instagram",
@@ -133,6 +142,7 @@ Looking for the best deal online? This {short_title} is currently trending at an
             "hashtags": niche_tags,
             "reel_script": reel_script,
             "media_paths": media_paths,
+            "video_path": video_path,
             "affiliate_url": aff_url,
             "status": "draft"
         }

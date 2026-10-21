@@ -56,6 +56,7 @@ def init_db():
         caption TEXT NOT NULL,
         hashtags TEXT,
         media_paths TEXT,
+        video_path TEXT,
         status TEXT DEFAULT 'draft',
         scheduled_time TIMESTAMP,
         published_time TIMESTAMP,
@@ -64,6 +65,12 @@ def init_db():
         FOREIGN KEY (product_id) REFERENCES products(id)
     );
     """)
+
+    # Column migration for existing databases
+    try:
+        cursor.execute("ALTER TABLE posts ADD COLUMN video_path TEXT")
+    except Exception:
+        pass
 
     # 3. Engagement Tasks Table
     cursor.execute("""
@@ -165,8 +172,8 @@ def save_post(post: Dict[str, Any]) -> int:
     media_json = json.dumps(post.get("media_paths", []))
     cursor.execute("""
     INSERT INTO posts (
-        product_id, platform, post_type, headline, caption, hashtags, media_paths, status, scheduled_time
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        product_id, platform, post_type, headline, caption, hashtags, media_paths, video_path, status, scheduled_time
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         post.get("product_id"),
         post.get("platform", "instagram"),
@@ -175,6 +182,7 @@ def save_post(post: Dict[str, Any]) -> int:
         post.get("caption", ""),
         post.get("hashtags", ""),
         media_json,
+        post.get("video_path", ""),
         post.get("status", "draft"),
         post.get("scheduled_time")
     ))

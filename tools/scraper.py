@@ -1,6 +1,6 @@
 """100% Dynamic Live Deals and Bestsellers Scraper for Amazon India and Flipkart.
-NO hardcoded products or prices. Dynamically scrapes real live bestsellers across
-Electronics (iPhones, Laptops), Fashion/Dresses, Toys, Kitchen, Beauty, and Festivals.
+NO hardcoded products or prices. Dynamically scrapes real live bestsellers and
+extracts MULTIPLE high-resolution gallery product photos from different angles.
 """
 
 import requests
@@ -43,7 +43,6 @@ class ProductScraper:
         }
 
     def _parse_price_number(self, price_str: str) -> float:
-        """Extracts float number from currency strings like ₹1,29,900 or 1499.00."""
         if not price_str:
             return 0.0
         cleaned = re.sub(r"[^\d.]", "", price_str.replace(",", ""))
@@ -52,10 +51,42 @@ class ProductScraper:
         except Exception:
             return 0.0
 
+    def extract_gallery_images(self, product_url: str, primary_img_url: str = "", max_images: int = 5) -> List[str]:
+        """
+        Extracts multiple high-resolution gallery product pictures from Amazon India or Flipkart.
+        Grabs alternate angles, lifestyle photos, detail shots.
+        """
+        images = []
+        if primary_img_url:
+            images.append(primary_img_url)
+
+        if not product_url:
+            return images
+
+        try:
+            headers = self._get_headers()
+            resp = requests.get(product_url, headers=headers, timeout=8)
+            if resp.status_code == 200:
+                html = resp.text.replace(r"\/", "/")
+                # Extract Amazon media image IDs
+                img_matches = re.findall(r"https://[a-zA-Z0-9.\-]+/images/I/([A-Za-z0-9%_-]+)\.(?:jpg|png|webp)", html)
+                for im_id in img_matches:
+                    clean_id = im_id.split(".")[0]
+                    if len(clean_id) >= 8 and not any(skip in clean_id.lower() for skip in ["sprite", "icon", "pixel", "logo", "button"]):
+                        full_url = f"https://m.media-amazon.com/images/I/{clean_id}._AC_SL1200_.jpg"
+                        if full_url not in images:
+                            images.append(full_url)
+                            if len(images) >= max_images:
+                                break
+        except Exception as e:
+            print(f"Gallery extraction error: {e}")
+
+        return images if images else ([primary_img_url] if primary_img_url else [])
+
     def scrape_live_bestsellers(self, category: str = "all", limit: int = 5) -> List[Dict[str, Any]]:
         """
         Dynamically scrapes real, live top-selling products from Amazon India.
-        Works across all categories (High-ticket Mobiles/iPhones, Fashion/Dresses, Toys, etc.).
+        Extracts multiple high-res pictures for every product.
         """
         url = self.category_urls.get(category.lower(), self.category_urls["all"])
         headers = self._get_headers()
@@ -63,13 +94,12 @@ class ProductScraper:
         try:
             response = requests.get(url, headers=headers, timeout=12)
             if response.status_code != 200:
-                # If blocked, try search fallback
                 return self.scrape_live_search(query=f"bestselling {category}", limit=limit)
 
             soup = BeautifulSoup(response.text, "html.parser")
             cards = soup.select('div[id*="gridItemRoot"]')
             if not cards:
-                cards = soup.select('div.p13n-grid-content, div.zg-grid-general-faceout')
+                cards = soup.select("div.p13n-grid-content, div.zg-grid-general-faceout")
 
             scraped_items = []
             for card in cards:
@@ -105,10 +135,9 @@ class ProductScraper:
                 img_url = ""
                 if img_elem and "src" in img_elem.attrs:
                     img_url = img_elem["src"]
-                    # If low-res thumbnail, replace with high-res standard
-                    img_url = re.sub(r"\._AC_.*_\.", "._AC_SL800_.", img_url)
+                    img_url = re.sub(r"\._AC_.*_\.", "._AC_SL1200_.", img_url)
 
-                # 4. Live Deal Price
+                # 4. Price
                 price = 0.0
                 price_elem = card.find("span", {"class": re.compile(r"p13n-sc-price|_cDEzb_p13n-sc-price|a-price-whole")})
                 if price_elem:
@@ -121,7 +150,6 @@ class ProductScraper:
                     mrp = self._parse_price_number(mrp_elem.get_text())
 
                 if mrp <= price:
-                    # Realistic retail markup if not rendered in list view
                     mrp = round(price * (1.2 if price > 20000 else 1.45), 2)
 
                 discount_pct = round(((mrp - price) / mrp) * 100, 1) if mrp > price and price > 0 else 0.0
@@ -141,15 +169,15 @@ class ProductScraper:
                     if rev_match:
                         reviews_count = int(rev_match.group(1).replace(",", ""))
 
-                # High-ticket commission estimation (e.g. Mobiles ~1.5%-2.5%, Fashion ~9%, Toys/Home ~9%)
                 if "mobile" in category or price > 25000:
                     comm_rate = 0.02
-                elif "fashion" in category:
-                    comm_rate = 0.09
-                elif "toy" in category:
+                elif "fashion" in category or "toy" in category:
                     comm_rate = 0.09
                 else:
                     comm_rate = 0.06
+
+                # Extract Multiple High-Res Photos (Gallery)
+                gallery_images = self.extract_gallery_images(clean_link, primary_img_url=img_url, max_images=5)
 
                 scraped_items.append({
                     "product_id": asin,
@@ -162,7 +190,8 @@ class ProductScraper:
                     "rating": rating,
                     "reviews_count": reviews_count,
                     "commission_rate": comm_rate,
-                    "image_url": img_url,
+                    "image_url": gallery_images[0] if gallery_images else img_url,
+                    "image_urls": gallery_images,
                     "source_url": clean_link
                 })
 
@@ -172,13 +201,10 @@ class ProductScraper:
         except Exception as e:
             print(f"Bestseller scraping exception: {e}")
 
-        # Fallback to Live Search Scraper if category list is transiently blocked
         return self.scrape_live_search(query=f"trending deals in {category}", limit=limit)
 
     def scrape_live_search(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """
-        Dynamically searches Amazon India for any real keyword (e.g., 'iPhone 16', 'Diwali dress', 'Remote control car').
-        """
+        """Dynamically searches Amazon India for keywords and extracts multiple images."""
         encoded_query = urllib.parse.quote_plus(query)
         url = f"https://www.amazon.in/s?k={encoded_query}"
         headers = self._get_headers()
@@ -198,22 +224,18 @@ class ProductScraper:
                     if not asin:
                         continue
 
-                    # Title
                     title_elem = item.find("h2")
                     title = title_elem.get_text().strip() if title_elem else ""
                     if not title:
                         continue
 
-                    # Clean Link
                     link = f"https://www.amazon.in/dp/{asin}"
 
-                    # Image
                     img_elem = item.find("img", {"class": "s-image"})
                     img_url = img_elem["src"] if img_elem and "src" in img_elem.attrs else ""
                     if img_url:
-                        img_url = re.sub(r"\._AC_.*_\.", "._AC_SL800_.", img_url)
+                        img_url = re.sub(r"\._AC_.*_\.", "._AC_SL1200_.", img_url)
 
-                    # Price
                     price_elem = item.find("span", {"class": "a-price-whole"})
                     price = self._parse_price_number(price_elem.get_text()) if price_elem else 0.0
 
@@ -223,9 +245,10 @@ class ProductScraper:
                         mrp = round(price * 1.35, 2)
 
                     discount_pct = round(((mrp - price) / mrp) * 100, 1) if mrp > price and price > 0 else 0.0
-
-                    # Commission rate
                     comm_rate = 0.02 if price > 20000 else 0.08
+
+                    # Extract multiple gallery images
+                    gallery_images = self.extract_gallery_images(link, primary_img_url=img_url, max_images=5)
 
                     scraped_items.append({
                         "product_id": asin,
@@ -238,7 +261,8 @@ class ProductScraper:
                         "rating": 4.4,
                         "reviews_count": 850,
                         "commission_rate": comm_rate,
-                        "image_url": img_url,
+                        "image_url": gallery_images[0] if gallery_images else img_url,
+                        "image_urls": gallery_images,
                         "source_url": link
                     })
 
@@ -248,7 +272,7 @@ class ProductScraper:
         return scraped_items
 
     def fetch_product_by_url(self, url: str) -> Optional[Dict[str, Any]]:
-        """Extracts live real-time product details from any provided Amazon India or Flipkart URL."""
+        """Extracts product details and multiple pictures from any Amazon/Flipkart URL."""
         headers = self._get_headers()
         try:
             resp = requests.get(url, headers=headers, timeout=12)
@@ -257,13 +281,11 @@ class ProductScraper:
                 title_elem = soup.find("span", {"id": "productTitle"})
                 title = title_elem.get_text().strip() if title_elem else "Featured Trending Product"
 
-                # Price
                 price = 0.0
                 price_elem = soup.find("span", {"class": "a-price-whole"})
                 if price_elem:
                     price = self._parse_price_number(price_elem.get_text())
 
-                # MRP
                 mrp = 0.0
                 mrp_elem = soup.find("span", {"class": "a-price a-text-price"})
                 if mrp_elem:
@@ -273,14 +295,15 @@ class ProductScraper:
 
                 discount_pct = round(((mrp - price) / mrp) * 100, 1) if mrp > price and price > 0 else 0.0
 
-                # High-res image
                 img_elem = soup.find("img", {"id": "landingImage"})
                 img_url = img_elem["src"] if img_elem and "src" in img_elem.attrs else ""
 
                 asin_match = re.search(r"/(?:dp|gp/product)/([A-Z0-9]{10})", url)
                 asin = asin_match.group(1) if asin_match else f"PRD_{int(time.time())}"
-
                 comm_rate = 0.02 if price > 25000 else 0.08
+
+                # Extract multiple images
+                gallery_images = self.extract_gallery_images(url, primary_img_url=img_url, max_images=5)
 
                 return {
                     "product_id": asin,
@@ -293,7 +316,8 @@ class ProductScraper:
                     "rating": 4.5,
                     "reviews_count": 2100,
                     "commission_rate": comm_rate,
-                    "image_url": img_url,
+                    "image_url": gallery_images[0] if gallery_images else img_url,
+                    "image_urls": gallery_images,
                     "source_url": url
                 }
         except Exception as e:

@@ -38,12 +38,18 @@ def init_db():
         rating REAL,
         reviews_count INTEGER,
         image_url TEXT,
+        image_urls TEXT,
         source_url TEXT NOT NULL,
         affiliate_url TEXT NOT NULL,
         status TEXT DEFAULT 'scouted',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN image_urls TEXT")
+    except Exception:
+        pass
 
     # 2. Posts Table
     cursor.execute("""
@@ -119,11 +125,14 @@ def init_db():
 def save_product(product: Dict[str, Any]) -> int:
     conn = get_db_connection()
     cursor = conn.cursor()
+    imgs = product.get("image_urls") or ([product.get("image_url")] if product.get("image_url") else [])
+    imgs_json = json.dumps(imgs)
+
     cursor.execute("""
     INSERT OR REPLACE INTO products (
         product_id, platform, title, category, original_price, deal_price,
-        discount_pct, rating, reviews_count, image_url, source_url, affiliate_url, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        discount_pct, rating, reviews_count, image_url, image_urls, source_url, affiliate_url, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         product.get("product_id"),
         product.get("platform", "Amazon"),
@@ -135,6 +144,7 @@ def save_product(product: Dict[str, Any]) -> int:
         product.get("rating", 4.0),
         product.get("reviews_count", 0),
         product.get("image_url", ""),
+        imgs_json,
         product.get("source_url", ""),
         product.get("affiliate_url", ""),
         product.get("status", "scouted")
@@ -152,7 +162,14 @@ def get_products(status: Optional[str] = None, limit: int = 50) -> List[Dict[str
         cursor.execute("SELECT * FROM products WHERE status = ? ORDER BY created_at DESC LIMIT ?", (status, limit))
     else:
         cursor.execute("SELECT * FROM products ORDER BY created_at DESC LIMIT ?", (limit,))
-    rows = [dict(r) for r in cursor.fetchall()]
+    rows = []
+    for r in cursor.fetchall():
+        d = dict(r)
+        try:
+            d["image_urls"] = json.loads(d.get("image_urls") or "[]")
+        except Exception:
+            d["image_urls"] = [d.get("image_url")] if d.get("image_url") else []
+        rows.append(d)
     conn.close()
     return rows
 

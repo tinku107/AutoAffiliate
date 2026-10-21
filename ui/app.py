@@ -312,8 +312,15 @@ with tab_test:
                 st.caption("🎬 Generated 9:16 AI Reel (With Neural Voiceover)")
 
             media = pst.get("media_paths", [])
-            if media and os.path.exists(media[0]):
-                st.image(media[0], caption="Generated 1080x1080 Banner", use_container_width=True)
+            if media:
+                if len(media) == 1 and os.path.exists(media[0]):
+                    st.image(media[0], caption="Generated 1080x1080 Banner", use_container_width=True)
+                else:
+                    st.write(f"📸 **Multi-Image Carousel ({len(media)} Angles):**")
+                    cols = st.columns(min(len(media), 4))
+                    for idx, (m_path, col) in enumerate(zip(media, cols)):
+                        if os.path.exists(m_path):
+                            col.image(m_path, caption=f"Slide {idx+1}", use_container_width=True)
             elif p.get("image_url"):
                 st.image(p["image_url"], caption="Live Product Photo", use_container_width=True)
 
@@ -476,8 +483,15 @@ with tab_posts:
                         st.caption("🎬 AI Reel Video (With Neural Voiceover)")
 
                     media_paths = post.get("media_paths", [])
-                    if media_paths and os.path.exists(media_paths[0]):
-                        st.image(media_paths[0], caption="Generated 1080x1080 Graphic Banner", use_container_width=True)
+                    if media_paths:
+                        if len(media_paths) == 1 and os.path.exists(media_paths[0]):
+                            st.image(media_paths[0], caption="Generated 1080x1080 Graphic Banner", use_container_width=True)
+                        else:
+                            st.write(f"📸 **Multi-Image Carousel ({len(media_paths)} Angles):**")
+                            c_imgs = st.columns(min(len(media_paths), 4))
+                            for idx, (m_p, c_i) in enumerate(zip(media_paths, c_imgs)):
+                                if os.path.exists(m_p):
+                                    c_i.image(m_p, caption=f"Slide {idx+1}", use_container_width=True)
                     elif post.get("product_image"):
                         st.image(post["product_image"], use_container_width=True)
 

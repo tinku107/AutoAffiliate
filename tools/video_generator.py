@@ -79,14 +79,14 @@ class VideoGenerator:
                 f"Stop scrolling! Look at this massive offer on the {short_title}. "
                 f"It is currently down to just {deal_price} rupees, with flat {discount} percent off. "
                 f"Rated 4.5 stars with thousands of happy orders. "
-                f"Comment LINK right now and our bot will instantly DM you the direct purchase link!"
+                f"Comment LINK right now and I will immediately send you the direct discount link!"
             )
         else:
             narration = (
                 f"Stop scrolling! Check out this top-rated {short_title}. "
                 f"Grab it now for only {deal_price} rupees. "
                 f"Rated 4.5 stars with verified buyer reviews. "
-                f"Comment LINK below to get the direct discount link sent to your DM!"
+                f"Comment LINK below to get the direct discount link sent right to your DM!"
             )
 
         audio_path = os.path.join(GENERATED_VID_DIR, f"audio_{pid}.mp3")

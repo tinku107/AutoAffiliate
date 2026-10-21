@@ -22,13 +22,12 @@ class CreativeAgent:
         """Generates viral copy, reel script, hashtags, and promotional graphic for any product dynamically."""
         log_agent_action(self.name, f"Generating {post_type} content for: {product['title'][:35]}...", "started")
 
-        # 1. Generate Promotional Image Graphic
+        # 1. Generate Multi-Image Carousel Slides (Multiple Angles from Amazon/Flipkart)
         try:
-            image_path = self.image_gen.generate_product_banner(product, banner_type="square")
-            media_paths = [image_path]
+            media_paths = self.image_gen.generate_carousel_slides(product, max_slides=4)
         except Exception as e:
-            log_agent_action(self.name, f"Image generation note: {e}", "warning")
-            media_paths = [product.get("image_url", "")]
+            log_agent_action(self.name, f"Image carousel note: {e}", "warning")
+            media_paths = product.get("image_urls", [product.get("image_url", "")])
 
         title = product.get("title", "Featured Trending Find")
         deal_price = int(product.get("deal_price", 0))
@@ -94,7 +93,7 @@ Looking for the best deal online? This {short_title} is currently trending at an
 • 🚚 {feature_2}
 
 👇 HOW TO GET THE DIRECT LINK:
-1. Comment "LINK" or "DEAL" below, and our bot will instantly DM you the verified purchase link!
+1. Comment "LINK" or "DEAL" below, and I'll send you the direct verified discount link straight to your DM!
 2. OR Tap the link in our bio & stories before this offer expires!
 
 ⚠️ Price and stock can change anytime on the platform. Grab it now!

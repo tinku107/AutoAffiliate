@@ -19,19 +19,22 @@ class ScoutAgent:
         self,
         category: str = "all",
         query: Optional[str] = None,
+        platform: str = "auto",
         count: int = 5,
         target_profit: float = 500.0
     ) -> List[Dict[str, Any]]:
         """
-        Dynamically scouts real live products.
-        Can scout by category (mobiles, electronics, fashion, toys, kitchen) or direct keyword search.
+        Dynamically scouts real live products from Amazon India & Flipkart.
+        Can scout by platform ('auto', 'amazon', 'flipkart'), category, or search query.
         """
-        log_agent_action(self.name, f"Live scouting for: {query or category}", "started")
+        log_agent_action(self.name, f"Live scouting [{platform.upper()}] for: {query or category}", "started")
 
-        if query:
-            raw_items = self.scraper.scrape_live_search(query=query, limit=count)
-        else:
-            raw_items = self.scraper.scrape_live_bestsellers(category=category, limit=count)
+        raw_items = self.scraper.scrape_unified_deals(
+            platform=platform,
+            category=category,
+            query=query,
+            limit=count
+        )
 
         processed_products = []
         for item in raw_items:

@@ -265,10 +265,21 @@ with tab_test:
     4. Auto-tags with your affiliate link and calculates commission towards your **₹{:,.0f}** goal.
     """.format(new_target))
 
-    t_col1, t_col2, t_col3 = st.columns([2, 2, 1.5])
+    t_col_plat, t_col1, t_col2, t_col3 = st.columns([1.5, 1.8, 1.8, 1.4])
+    with t_col_plat:
+        test_platform = st.selectbox(
+            "Platform Source",
+            ["auto", "amazon", "flipkart"],
+            format_func=lambda x: {
+                "auto": "⚡ Auto (Amazon + Flipkart)",
+                "amazon": "📦 Amazon India Only",
+                "flipkart": "🛍️ Flipkart Only"
+            }.get(x, x),
+            help="Toggle between Amazon, Flipkart, or Auto-cycling between both"
+        )
     with t_col1:
         test_cat = st.selectbox(
-            "Select Live Category to Test",
+            "Live Category",
             ["mobiles", "electronics", "fashion", "toys", "kitchen", "beauty", "all"],
             format_func=lambda x: {
                 "mobiles": "📱 High-Ticket Mobiles & iPhones",
@@ -277,21 +288,26 @@ with tab_test:
                 "toys": "🧸 Kids Toys & Games",
                 "kitchen": "🍳 Home & Kitchen Finds",
                 "beauty": "💄 Beauty & Personal Care",
-                "all": "⚡ All Amazon Bestsellers"
+                "all": "⚡ Top Bestsellers & Deals"
             }.get(x, x)
         )
     with t_col2:
-        custom_query = st.text_input("Or Search Live Keyword (Optional)", placeholder="e.g. iPhone 16, Diwali Lehenga, Drone")
+        custom_query = st.text_input("Or Search Live Keyword", placeholder="e.g. iPhone 16, Lehenga, RC Car")
     with t_col3:
         st.markdown("<br>", unsafe_allow_html=True)
         run_test_btn = st.button("⚡ Test Next Product Now", use_container_width=True)
 
     if run_test_btn:
-        with st.spinner(f"Scout & Creative bots testing live product in '{custom_query or test_cat}'..."):
-            res = st.session_state.orchestrator.test_next_product(category=test_cat, query=custom_query if custom_query else None)
+        with st.spinner(f"Scout & Creative bots fetching next live deal from {test_platform.upper()} in '{custom_query or test_cat}'..."):
+            res = st.session_state.orchestrator.test_next_product(
+                category=test_cat,
+                query=custom_query if custom_query else None,
+                platform=test_platform
+            )
             if res.get("success"):
                 st.session_state.last_test_result = res
-                st.success("Test product successfully fetched and created!")
+                st.toast(f"✅ Fetched fresh live deal from {res.get('platform', 'Amazon')}!", icon="⚡")
+                st.rerun()
             else:
                 st.error(res.get("error", "Failed to retrieve live product."))
 
@@ -300,9 +316,12 @@ with tab_test:
         res = st.session_state.last_test_result
         p = res["product"]
         pst = res["post"]
+        plat_badge = "🛍️ Flipkart Live Deal" if p.get("platform") == "Flipkart" else "📦 Amazon India Live Deal"
+        t_num = res.get("test_number", 1)
 
         st.divider()
-        st.markdown("### 🔍 Live Test Results")
+        st.markdown(f"### 🔍 Live Test Results — <span style='color:#38bdf8; font-weight:700;'>{plat_badge}</span> <small style='color:#94a3b8;'>(Test #{t_num} Fresh Live Item)</small>", unsafe_allow_html=True)
+        st.caption("💡 Every time you click **'⚡ Test Next Product Now'**, the bots dynamically advance to the NEXT live product on the market!")
 
         res_col_img, res_col_info = st.columns([1.5, 2.5])
         with res_col_img:

@@ -35,6 +35,8 @@ class AgentOrchestrator:
         self.scout = ScoutAgent(amazon_tag=aff_tag, earnkaro_id=earnkaro_id)
         self.creative = CreativeAgent(gemini_api_key=gemini_key)
         self.marketer = MarketerAgent()
+        self.tested_product_ids = set()
+        self.test_counter = 0
 
     def _load_config(self) -> Dict[str, Any]:
         if os.path.exists(CONFIG_PATH):
@@ -59,30 +61,58 @@ class AgentOrchestrator:
         except Exception as e:
             print(f"Could not update target in config: {e}")
 
-    def test_next_product(self, category: str = "all", query: Optional[str] = None) -> Dict[str, Any]:
+    def test_next_product(
+        self,
+        category: str = "all",
+        query: Optional[str] = None,
+        platform: str = "auto"
+    ) -> Dict[str, Any]:
         """
-        Executes an instant end-to-end test:
-        1. Dynamically finds the next live selling product
-        2. Generates complete copy, reel script, hashtags, and visual banner
-        3. Returns the full asset package for immediate user inspection
+        Executes an instant end-to-end test with guaranteed fresh product rotation:
+        1. Dynamically finds live selling products from Amazon India & Flipkart.
+        2. Filters out previously tested items so EVERY press shows the NEXT real product!
+        3. Generates complete copy, reel script, hashtags, and visual carousel / video.
+        4. Returns the full asset package for immediate user inspection.
         """
-        log_agent_action("Orchestrator", f"Testing next product in: {query or category}", "started")
+        log_agent_action("Orchestrator", f"Testing next product [{platform.upper()}] in: {query or category}", "started")
 
+        # Fetch a pool of live products so we can select the NEXT fresh product
+        pool_size = 15
         products = self.scout.scout_trending_products(
             category=category,
             query=query,
-            count=1,
+            platform=platform,
+            count=pool_size,
             target_profit=self.daily_target_inr
         )
         if not products:
-            return {"success": False, "error": "No live product could be retrieved from search"}
+            return {"success": False, "error": f"No live products retrieved from {platform.upper()} for '{query or category}'"}
 
-        target_prod = products[0]
+        # Find the next product that has not been tested in this session
+        target_prod = None
+        for p in products:
+            pid = p.get("product_id")
+            if pid and pid not in self.tested_product_ids:
+                target_prod = p
+                self.tested_product_ids.add(pid)
+                break
+
+        # If all products in the pool have been tested, clear history and cycle
+        if not target_prod:
+            self.tested_product_ids.clear()
+            idx = self.test_counter % len(products)
+            target_prod = products[idx]
+            self.tested_product_ids.add(target_prod.get("product_id"))
+
+        self.test_counter += 1
+
         post = self.creative.generate_content_for_product(target_prod)
 
-        log_agent_action("Orchestrator", f"Test product package ready: {target_prod['title'][:35]}", "completed")
+        log_agent_action("Orchestrator", f"Test product #{self.test_counter} ready: [{target_prod['platform']}] {target_prod['title'][:35]}", "completed")
         return {
             "success": True,
+            "test_number": self.test_counter,
+            "platform": target_prod.get("platform", "Amazon"),
             "product": target_prod,
             "post": post
         }

@@ -60,6 +60,24 @@ TELEGRAM_CHANNEL_ID=@your_channel_username
 
 ---
 
+## ☁️ Free 1-Click Deployment to Streamlit Community Cloud
+
+Streamlit Community Cloud provides **100% free hosting** for public GitHub repositories. You can deploy this entire multi-agent dashboard to the cloud and operate it from your mobile or browser anywhere in the world!
+
+1. Go to **[share.streamlit.io](https://share.streamlit.io/)** and sign in with GitHub (`tinku107`).
+2. Click **"New app"** (or **"Create app"**).
+3. Select your repository:
+   - **Repository:** `tinku107/AutoAffiliate`
+   - **Branch:** `main`
+   - **Main file path:** `ui/app.py`
+   - **App URL:** e.g., `autoaffiliate-ai.streamlit.app`
+4. Click **Deploy!**
+   - Streamlit Cloud automatically configures Python, installs Debian packages via `packages.txt` (including `ffmpeg` and `fonts-dejavu-core`), installs dependencies via `requirements.txt`, and boots up your dashboard within 2 minutes.
+5. **Manage Secrets (Optional for Live Meta/Telegram)**:
+   - In the deployed app, click `...` in the lower right $\rightarrow$ **Settings** $\rightarrow$ **Secrets** to set your keys securely.
+
+---
+
 ## 🎯 Proven 14-Day Roadmap to ₹500/Day Minimum
 
 To hit ₹500/day in India, you need approximately **10 to 12 sales per day** of ₹499 - ₹999 gadgets (at 8-9% commission = ~₹40 - ₹80 per sale):

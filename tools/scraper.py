@@ -1,4 +1,4 @@
-﻿"""100% Dynamic Live Deals Scraper for BOTH Amazon India and Flipkart.
+"""100% Dynamic Live Deals Scraper for BOTH Amazon India and Flipkart.
 NO hardcoded products or prices. Dynamically scrapes real live bestsellers and deals,
 extracts MULTIPLE high-resolution gallery product photos from different angles,
 and supports automatic failover between Amazon and Flipkart.
@@ -58,11 +58,15 @@ class ProductScraper:
     def _parse_price_number(self, price_str: str) -> float:
         if not price_str:
             return 0.0
-        cleaned = re.sub(r"[^\d.]", "", price_str.replace(",", ""))
-        try:
-            return float(cleaned)
-        except Exception:
-            return 0.0
+        # Extract first contiguous numeric price (avoids concatenated duplicate spans like 5400054000)
+        match = re.search(r"[\d,]+(?:\.\d+)?", price_str)
+        if match:
+            cleaned = match.group(0).replace(",", "")
+            try:
+                return float(cleaned)
+            except Exception:
+                pass
+        return 0.0
 
     def extract_gallery_images(self, product_url: str, primary_img_url: str = "", max_images: int = 5) -> List[str]:
         """
@@ -164,11 +168,15 @@ class ProductScraper:
                 if price_elem:
                     price = self._parse_price_number(price_elem.get_text())
 
+                # Strictly skip out of stock or unpriced items
+                if price <= 0:
+                    continue
+
                 mrp = 0.0
                 mrp_elem = card.find("span", {"class": re.compile(r"a-price a-text-price")})
                 if mrp_elem:
                     mrp = self._parse_price_number(mrp_elem.get_text())
-                if mrp <= price and price > 0:
+                if mrp <= price or mrp > 5 * price:
                     mrp = round(price * (1.2 if price > 20000 else 1.45), 2)
 
                 discount_pct = round(((mrp - price) / mrp) * 100, 1) if mrp > price and price > 0 else 0.0
@@ -258,14 +266,38 @@ class ProductScraper:
 
                     price_elem = item.find("span", {"class": "a-price-whole"})
                     price = self._parse_price_number(price_elem.get_text()) if price_elem else 0.0
+                    if price <= 0:
+                        offscreen = item.select_one("span.a-price span.a-offscreen")
+                        if offscreen:
+                            price = self._parse_price_number(offscreen.get_text())
 
-                    mrp_elem = item.find("span", {"class": "a-price a-text-price"})
+                    # Skip unpriced or out-of-stock products
+                    if price <= 0:
+                        continue
+
+                    mrp_elem = item.select_one("span.a-price.a-text-price span.a-offscreen") or item.find("span", {"class": "a-price a-text-price"})
                     mrp = self._parse_price_number(mrp_elem.get_text()) if mrp_elem else 0.0
-                    if mrp <= price and price > 0:
+                    if mrp <= price or mrp > 5 * price:
                         mrp = round(price * 1.35, 2)
 
                     discount_pct = round(((mrp - price) / mrp) * 100, 1) if mrp > price and price > 0 else 0.0
-                    comm_rate = 0.02 if price > 20000 else 0.08
+
+                    q_lower = query.lower().strip()
+                    if q_lower in ["ac", "air conditioner", "fridge", "refrigerator", "washing machine", "tv", "appliance"]:
+                        cat_name = "Home Appliances"
+                        comm_rate = 0.025
+                    elif any(k in q_lower for k in ["mobile", "phone", "iphone", "samsung"]):
+                        cat_name = "Mobiles & Tech"
+                        comm_rate = 0.02
+                    elif any(k in q_lower for k in ["dress", "saree", "kurta", "fashion"]):
+                        cat_name = "Fashion & Apparel"
+                        comm_rate = 0.09
+                    elif any(k in q_lower for k in ["toy", "game", "kids"]):
+                        cat_name = "Toys & Games"
+                        comm_rate = 0.09
+                    else:
+                        cat_name = query.title()
+                        comm_rate = 0.02 if price > 20000 else 0.08
 
                     gallery_images = self.extract_gallery_images(link, primary_img_url=img_url, max_images=4)
 
@@ -273,7 +305,7 @@ class ProductScraper:
                         "product_id": asin,
                         "platform": "Amazon",
                         "title": title,
-                        "category": query.title(),
+                        "category": cat_name,
                         "original_price": mrp,
                         "deal_price": price,
                         "discount_pct": discount_pct,
@@ -367,7 +399,23 @@ class ProductScraper:
                         if r_match:
                             reviews = int(r_match.group(1).replace(',', ''))
 
-                comm_rate = 0.02 if deal_price > 20000 else 0.08
+                q_lower = query.lower().strip()
+                if q_lower in ["ac", "air conditioner", "fridge", "refrigerator", "washing machine", "tv", "appliance"]:
+                    cat_name = "Home Appliances"
+                    comm_rate = 0.025
+                elif any(k in q_lower for k in ["mobile", "phone", "iphone", "samsung"]):
+                    cat_name = "Mobiles & Tech"
+                    comm_rate = 0.02
+                elif any(k in q_lower for k in ["dress", "saree", "kurta", "fashion"]):
+                    cat_name = "Fashion & Apparel"
+                    comm_rate = 0.09
+                elif any(k in q_lower for k in ["toy", "game", "kids"]):
+                    cat_name = "Toys & Games"
+                    comm_rate = 0.09
+                else:
+                    cat_name = query.title()
+                    comm_rate = 0.02 if deal_price > 20000 else 0.08
+
                 gallery_images = self.extract_gallery_images(link, primary_img_url=img_url, max_images=4)
 
                 if deal_price > 0:
@@ -375,7 +423,7 @@ class ProductScraper:
                         'product_id': pid,
                         'platform': 'Flipkart',
                         'title': title,
-                        'category': query.title(),
+                        'category': cat_name,
                         'original_price': mrp,
                         'deal_price': deal_price,
                         'discount_pct': discount,

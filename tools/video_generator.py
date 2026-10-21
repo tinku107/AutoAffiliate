@@ -30,21 +30,27 @@ class VideoGenerator:
         self.fps = 24
 
     def _get_font(self, size: int, bold: bool = False):
-        font_names = [
-            "arialbd.ttf" if bold else "arial.ttf",
-            "seguisb.ttf" if bold else "segoeui.ttf",
-            "tahoma.ttf",
-            "calibri.ttf"
+        candidate_paths = [
+            # Windows font paths
+            os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "arialbd.ttf" if bold else "arial.ttf"),
+            os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "seguisb.ttf" if bold else "segoeui.ttf"),
+            os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "tahoma.ttf"),
+            os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "calibri.ttf"),
+            # Linux font paths (Streamlit Cloud / Debian / Ubuntu)
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf" if bold else "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
         ]
-        win_fonts = os.environ.get("WINDIR", "C:\\Windows") + "\\Fonts"
-        for name in font_names:
-            p = os.path.join(win_fonts, name)
+        for p in candidate_paths:
             if os.path.exists(p):
                 try:
                     return ImageFont.truetype(p, size)
                 except Exception:
                     continue
-        return ImageFont.load_default()
+        try:
+            return ImageFont.load_default(size=size)
+        except Exception:
+            return ImageFont.load_default()
 
     async def _generate_voiceover_async(self, text: str, output_path: str):
         """Generates clear, energetic neural voiceover in Indian English."""

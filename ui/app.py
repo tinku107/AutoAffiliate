@@ -11,8 +11,9 @@ from datetime import datetime
 import pandas as pd
 
 # Add project root to sys.path
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
+import importlib
+import core.orchestrator
+importlib.reload(core.orchestrator)
 from core.orchestrator import AgentOrchestrator
 from core.auto_daemon import get_auto_daemon
 from core.db import (
@@ -82,8 +83,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# Initialize Orchestrator in Session State
-if "orchestrator" not in st.session_state:
+# Initialize Orchestrator in Session State (auto-refresh if outdated instance)
+if "orchestrator" not in st.session_state or not hasattr(st.session_state.orchestrator, "tested_product_ids"):
     st.session_state.orchestrator = AgentOrchestrator()
 
 if "chat_messages" not in st.session_state:
@@ -299,6 +300,9 @@ with tab_test:
 
     if run_test_btn:
         with st.spinner(f"Scout & Creative bots fetching next live deal from {test_platform.upper()} in '{custom_query or test_cat}'..."):
+            if not hasattr(st.session_state.orchestrator, "tested_product_ids"):
+                st.session_state.orchestrator = AgentOrchestrator()
+
             res = st.session_state.orchestrator.test_next_product(
                 category=test_cat,
                 query=custom_query if custom_query else None,

@@ -65,7 +65,8 @@ class AgentOrchestrator:
         self,
         category: str = "all",
         query: Optional[str] = None,
-        platform: str = "auto"
+        platform: str = "auto",
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Executes an instant end-to-end test with guaranteed fresh product rotation:

@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments & sensitive keys
+.env
+credentials.env
+*.key
+*.pem
+
+# Local databases
+data/*.db
+*.sqlite3
+
+# Generated runtime media
+data/generated_images/*
+!data/generated_images/.gitkeep
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
+.venv/

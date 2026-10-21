@@ -1,0 +1,56 @@
+# AutoAffiliate AI Configuration
+
+app:
+  name: "AutoAffiliate AI"
+  version: "1.0.0"
+  daily_revenue_target_inr: 500
+  currency: "INR"
+
+affiliate:
+  # Tag will be appended as ?tag=yourtag-21 on Amazon India
+  amazon_associate_tag: "autoaffil-21"
+  # Optional EarnKaro / Cuelinks credentials for Flipkart, Myntra, Ajio
+  earnkaro_api_key: ""
+  default_disclosure_text: "#ad #affiliate #commissionsearned #amazondeals"
+
+niches:
+  - id: "gadgets"
+    name: "Smart Gadgets & Life Hacks"
+    max_price: 1499
+    min_discount_pct: 35
+    keywords: ["smart gadget", "home hack", "tech finds", "kitchen tool", "car accessory"]
+  - id: "kitchen"
+    name: "Aesthetic Kitchen & Home Decor"
+    max_price: 999
+    min_discount_pct: 40
+    keywords: ["kitchen organizer", "smart storage", "cleaning gadget", "room decor"]
+  - id: "beauty"
+    name: "Personal Care & Beauty Deals"
+    max_price: 799
+    min_discount_pct: 45
+    keywords: ["skincare", "hair styling", "grooming", "massager"]
+
+posting_schedule:
+  # Peak online shopping hours in India (IST)
+  peak_slots:
+    - "12:30"
+    - "18:30"
+    - "21:00"
+  max_posts_per_day: 4
+
+safety_limits:
+  max_comments_per_hour: 8
+  max_likes_per_hour: 15
+  min_delay_between_actions_sec: 180
+  human_simulation_jitter_sec: 45
+
+social:
+  instagram_username: ""
+  facebook_page_id: ""
+  meta_access_token: ""
+  telegram_channel_id: ""  # Optional Telegram deals channel for 5x conversions
+  telegram_bot_token: ""
+
+ai:
+  model: "gemini-2.5-flash"
+  gemini_api_key: ""

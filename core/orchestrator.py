@@ -61,6 +61,104 @@ class AgentOrchestrator:
         except Exception as e:
             print(f"Could not update target in config: {e}")
 
+    def get_channel_profiles(self) -> List[Dict[str, Any]]:
+        """Returns the list of configured channel profiles."""
+        cfg = self._load_config()
+        return cfg.get("channel_profiles", [
+            {
+                "id": "general",
+                "name": "🌟 Mega Loot Deals (General)",
+                "focus_niche": "all",
+                "description": "Common focus: Scrapes top deals across all categories",
+                "instagram_username": "",
+                "facebook_page_id": ""
+            }
+        ])
+
+    def get_channel_mode(self) -> str:
+        """Returns 'single' (focus on active profile) or 'multi_channel' (cycle through all profiles)."""
+        cfg = self._load_config()
+        return cfg.get("channel_mode", "single")
+
+    def set_channel_mode(self, mode: str):
+        cfg = self._load_config()
+        cfg["channel_mode"] = mode
+        try:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, default_flow_style=False)
+            self.config = cfg
+            log_agent_action("Orchestrator", f"Channel mode switched to: {mode}", "completed")
+        except Exception as e:
+            print(f"Error saving channel mode: {e}")
+
+    def get_active_profile(self) -> Dict[str, Any]:
+        """Returns the currently active channel profile."""
+        cfg = self._load_config()
+        active_id = cfg.get("active_profile_id", "general")
+        profiles = self.get_channel_profiles()
+        for p in profiles:
+            if p.get("id") == active_id:
+                return p
+        return profiles[0] if profiles else {"id": "general", "name": "General Deals", "focus_niche": "all"}
+
+    def set_active_profile(self, profile_id: str):
+        """Switches the active channel profile."""
+        cfg = self._load_config()
+        cfg["active_profile_id"] = profile_id
+        try:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, default_flow_style=False)
+            self.config = cfg
+            p = self.get_active_profile()
+            log_agent_action("Orchestrator", f"Active channel profile changed to: {p.get('name')}", "completed")
+        except Exception as e:
+            print(f"Error saving active profile: {e}")
+
+    def save_channel_profile(self, profile_data: Dict[str, Any]):
+        """Adds or updates a channel profile."""
+        cfg = self._load_config()
+        profiles = cfg.get("channel_profiles", [])
+        pid = profile_data.get("id") or profile_data.get("name", "channel").lower().replace(" ", "_")
+        profile_data["id"] = pid
+
+        found = False
+        for idx, p in enumerate(profiles):
+            if p.get("id") == pid:
+                profiles[idx] = profile_data
+                found = True
+                break
+        if not found:
+            profiles.append(profile_data)
+
+        cfg["channel_profiles"] = profiles
+        try:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, default_flow_style=False)
+            self.config = cfg
+            log_agent_action("Orchestrator", f"Saved channel profile: {profile_data.get('name')}", "completed")
+        except Exception as e:
+            print(f"Error saving channel profile: {e}")
+
+    def delete_channel_profile(self, profile_id: str) -> bool:
+        """Deletes a channel profile."""
+        cfg = self._load_config()
+        profiles = cfg.get("channel_profiles", [])
+        if len(profiles) <= 1:
+            return False  # Prevent deleting only profile
+        new_profiles = [p for p in profiles if p.get("id") != profile_id]
+        cfg["channel_profiles"] = new_profiles
+        if cfg.get("active_profile_id") == profile_id:
+            cfg["active_profile_id"] = new_profiles[0]["id"]
+        try:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, default_flow_style=False)
+            self.config = cfg
+            log_agent_action("Orchestrator", f"Deleted channel profile #{profile_id}", "completed")
+            return True
+        except Exception as e:
+            print(f"Error deleting profile: {e}")
+            return False
+
     def test_next_product(
         self,
         category: str = "all",
@@ -118,38 +216,43 @@ class AgentOrchestrator:
             "post": post
         }
 
-    def run_full_daily_autonomous_cycle(self, category: str = "all") -> Dict[str, Any]:
+    def run_full_daily_autonomous_cycle(self, category: Optional[str] = None, channel_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Executes the complete autonomous daily cycle:
-        1. Scout 3 trending viral deals dynamically
+        1. Scout 3 trending viral deals dynamically for the target channel
         2. Generate complete posts (captions, reel scripts, image graphics)
         3. Publish the top-rated post to Instagram & Facebook
         4. Run humanized target audience engagement
         5. Update progress towards target INR X
         """
-        log_agent_action("Orchestrator", f"Initiating Full Autonomous Daily Cycle ({category})", "started")
+        prof = channel_profile or self.get_active_profile()
+        target_cat = category or prof.get("focus_niche", "all")
 
-        products = self.scout.scout_trending_products(category=category, count=3, target_profit=self.daily_target_inr)
+        log_agent_action("Orchestrator", f"Initiating Autonomous Cycle ({target_cat}) for [{prof.get('name')}]", "started")
+
+        products = self.scout.scout_trending_products(category=target_cat, count=3, target_profit=self.daily_target_inr)
 
         created_posts = []
         for prod in products:
             post = self.creative.generate_content_for_product(prod)
+            post["target_channel"] = prof.get("id")
             created_posts.append(post)
 
         publish_result = {}
         if created_posts:
-            publish_result = self.marketer.publish_approved_post(created_posts[0])
+            publish_result = self.marketer.publish_approved_post(created_posts[0], channel_profile=prof)
 
-        engagement = self.marketer.scout_and_engage_with_target_audience(niche="deals", count=3)
+        engagement = self.marketer.scout_and_engage_with_target_audience(niche=target_cat if target_cat != "all" else "deals", count=3)
 
-        log_agent_action("Orchestrator", "Full Autonomous Daily Cycle Completed", "completed")
+        log_agent_action("Orchestrator", f"Autonomous Cycle Completed for [{prof.get('name')}]", "completed")
 
         return {
+            "channel": prof.get("name"),
             "scouted_count": len(products),
             "created_posts_count": len(created_posts),
             "published_post": publish_result,
             "engagement_actions": len(engagement),
-            "summary": f"Autonomous cycle finished: Discovered {len(products)} deals, generated {len(created_posts)} posts, published Top Deal #{created_posts[0]['id'] if created_posts else 'N/A'}, and completed {len(engagement)} organic interactions."
+            "summary": f"Autonomous cycle finished for [{prof.get('name')}]: Discovered {len(products)} deals in '{target_cat}', generated {len(created_posts)} posts, published Top Deal #{created_posts[0]['id'] if created_posts else 'N/A'}, and completed {len(engagement)} organic interactions."
         }
 
     def process_chat_command(self, user_prompt: str) -> Dict[str, Any]:

@@ -34,24 +34,33 @@ class MarketerAgent:
             "Honestly didn't know this existed. Adding to my cart right now 🔥"
         ]
 
-    def publish_approved_post(self, post: Dict[str, Any]) -> Dict[str, Any]:
-        """Publishes post to Instagram/FB and broadcasts to Telegram."""
+    def publish_approved_post(self, post: Dict[str, Any], channel_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Publishes post to Instagram/FB and broadcasts to Telegram using profile credentials."""
         post_id = post.get("id")
-        log_agent_action(self.name, f"Publishing Post #{post_id} to Instagram & Facebook", "started")
+        channel_name = channel_profile.get("name", "Default Channel") if channel_profile else "Default Channel"
+        log_agent_action(self.name, f"Publishing Post #{post_id} to [{channel_name}] (Instagram & Facebook)", "started")
+
+        pub = self.publisher
+        if channel_profile and (channel_profile.get("meta_access_token") or channel_profile.get("facebook_page_id") or channel_profile.get("telegram_channel_id")):
+            pub = MetaPublisher(
+                access_token=channel_profile.get("meta_access_token"),
+                fb_page_id=channel_profile.get("facebook_page_id"),
+                telegram_token=channel_profile.get("telegram_bot_token"),
+                telegram_channel_id=channel_profile.get("telegram_channel_id")
+            )
 
         image_path = post.get("media_paths", [None])[0] if post.get("media_paths") else None
         caption = f"{post.get('caption', '')}\n\n{post.get('hashtags', '')}"
 
         # 1. Instagram Publication
-        # For local files in simulation/live, we pass image url or path
-        ig_res = self.publisher.publish_instagram_photo(image_url=image_path or "", caption=caption)
+        ig_res = pub.publish_instagram_photo(image_url=image_path or "", caption=caption)
 
         # 2. Facebook Publication
-        fb_res = self.publisher.publish_facebook_post(message=caption, link=post.get("affiliate_url"))
+        fb_res = pub.publish_facebook_post(message=caption, link=post.get("affiliate_url"))
 
-        # 3. Telegram Deals Broadcast (Massive conversion driver in India)
+        # 3. Telegram Deals Broadcast
         tg_text = f"🔥 <b>DEAL ALERT:</b> {post.get('headline')}\n\n👉 <b>Grab it here:</b> {post.get('affiliate_url')}"
-        tg_res = self.publisher.broadcast_telegram_deal(image_path=image_path, text=tg_text)
+        tg_res = pub.broadcast_telegram_deal(image_path=image_path, text=tg_text)
 
         # Update post in DB
         update_post_status(post_id, "published", external_id=ig_res.get("post_id", "sim_1"))

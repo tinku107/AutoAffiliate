@@ -238,14 +238,56 @@ with ap_col3:
             daemon.start_background_loop()
             st.rerun()
 
+# ==============================================================================
+# ACTIVE CHANNEL PROFILE & FOCUS STRATEGY BAR
+# ==============================================================================
+profiles = st.session_state.orchestrator.get_channel_profiles()
+active_prof = st.session_state.orchestrator.get_active_profile()
+channel_mode = st.session_state.orchestrator.get_channel_mode()
+
+chan_c1, chan_c2, chan_c3 = st.columns([2.4, 1.8, 1.2])
+with chan_c1:
+    profile_ids = [p["id"] for p in profiles]
+    curr_idx = profile_ids.index(active_prof["id"]) if active_prof["id"] in profile_ids else 0
+    chosen_pid = st.selectbox(
+        "🎯 Active Social Media Account",
+        profile_ids,
+        index=curr_idx,
+        format_func=lambda pid: next((f"{p['name']} — [{p.get('focus_niche', 'all').upper()}]" for p in profiles if p["id"] == pid), pid),
+        help="Select which Instagram/Facebook account you want the bots to focus on"
+    )
+    if chosen_pid != active_prof["id"]:
+        st.session_state.orchestrator.set_active_profile(chosen_pid)
+        st.toast(f"Active channel set to {chosen_pid}!", icon="🎯")
+        st.rerun()
+
+with chan_c2:
+    strat_mode = st.selectbox(
+        "Channel Strategy",
+        ["single", "multi_channel"],
+        index=0 if channel_mode == "single" else 1,
+        format_func=lambda m: "🎯 Single Niche Focus" if m == "single" else "🔄 Multi-Account Autopilot",
+        help="Single Niche: Daemon & bots focus strictly on the selected account's niche. Multi-Account: Daemon cycles through all configured accounts."
+    )
+    if strat_mode != channel_mode:
+        st.session_state.orchestrator.set_channel_mode(strat_mode)
+        st.toast(f"Strategy updated to {strat_mode}!", icon="🔄")
+        st.rerun()
+
+with chan_c3:
+    st.markdown("<br>", unsafe_allow_html=True)
+    niche_disp = active_prof.get("focus_niche", "all").upper()
+    st.markdown(f"**Target Niche:** <span style='color:#38bdf8; font-weight:700;'>{niche_disp}</span>", unsafe_allow_html=True)
+
 st.divider()
 
 # ==============================================================================
 # MAIN TABS
 # ==============================================================================
-tab_test, tab_chat, tab_deals, tab_posts, tab_pages, tab_analytics = st.tabs([
+tab_test, tab_chat, tab_channels, tab_deals, tab_posts, tab_pages, tab_analytics = st.tabs([
     "⚡ Test Next Product (Live)",
     "💬 Grok Command Deck",
+    "⚙️ Common Settings & Channels",
     "🛍️ Scouted Deals",
     "📱 Posts & Visual Assets",
     "🏷️ Suggested Page Names & Setup",
@@ -279,9 +321,13 @@ with tab_test:
             help="Toggle between Amazon, Flipkart, or Auto-cycling between both"
         )
     with t_col1:
+        pref_niche = active_prof.get("focus_niche", "all")
+        cat_choices = ["all", "fashion", "mobiles", "electronics", "toys", "kitchen", "beauty"]
+        def_cat_idx = cat_choices.index(pref_niche) if pref_niche in cat_choices else 0
         test_cat = st.selectbox(
             "Live Category",
-            ["mobiles", "electronics", "fashion", "toys", "kitchen", "beauty", "all"],
+            cat_choices,
+            index=def_cat_idx,
             format_func=lambda x: {
                 "mobiles": "📱 High-Ticket Mobiles & iPhones",
                 "electronics": "💻 Electronics & Tech",
@@ -439,7 +485,168 @@ with tab_chat:
 
 
 # ------------------------------------------------------------------------------
-# TAB 3: Scouted Deals Pipeline
+# TAB 3: Common Settings & Multi-Channel Profiles
+# ------------------------------------------------------------------------------
+with tab_channels:
+    st.subheader("⚙️ Channel Profiles & Common Settings")
+    st.markdown("""
+    Configure your specific social media accounts (e.g. Account 1 for **Ladies Dresses**, Account 2 for **Electronics**, Account 3 for **General Deals**).
+    You can set the bots to focus strictly on one niche or run a multi-channel autopilot that rotates through all your accounts automatically.
+    """)
+
+    # 1. Channel Profiles Cards
+    st.markdown("### 📱 Connected Social Media Accounts")
+    all_profiles = st.session_state.orchestrator.get_channel_profiles()
+    curr_active = st.session_state.orchestrator.get_active_profile()
+
+    for prof in all_profiles:
+        is_act = (prof.get("id") == curr_active.get("id"))
+        status_tag = "🟢 ACTIVE FOCUS" if is_act else "⚪ STANDBY"
+
+        with st.container():
+            col_p1, col_p2, col_p3 = st.columns([3, 2, 1.2])
+            with col_p1:
+                st.markdown(f"#### {prof.get('name')}")
+                st.caption(prof.get("description", ""))
+                st.markdown(f"**Target Niche:** `{prof.get('focus_niche', 'all').upper()}`")
+            with col_p2:
+                ig_name = prof.get("instagram_username") or "Not set"
+                fb_id = prof.get("facebook_page_id") or "Not set"
+                tg_ch = prof.get("telegram_channel_id") or "Not set"
+                st.markdown(f"• **Instagram:** `{ig_name}`")
+                st.markdown(f"• **Facebook Page ID:** `{fb_id}`")
+                st.markdown(f"• **Telegram Channel:** `{tg_ch}`")
+            with col_p3:
+                st.markdown(f"<span style='color:{'#34d399' if is_act else '#94a3b8'}; font-weight:700;'>{status_tag}</span>", unsafe_allow_html=True)
+                st.markdown("<br>", unsafe_allow_html=True)
+                if not is_act:
+                    if st.button("Set as Active", key=f"btn_act_{prof.get('id')}", use_container_width=True):
+                        st.session_state.orchestrator.set_active_profile(prof.get("id"))
+                        st.rerun()
+            st.divider()
+
+    # 2. Add / Edit Channel Profile Form
+    st.markdown("### ➕ Add New Social Media Account / Niche Channel")
+    with st.expander("Register New Account Profile", expanded=False):
+        with st.form("form_add_channel"):
+            new_c_name = st.text_input("Account Display Name", placeholder="e.g. FeminaStyle India (Ladies Dress)")
+            new_c_niche = st.selectbox(
+                "Niche Focus",
+                ["fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "all"],
+                format_func=lambda x: {
+                    "fashion": "👗 Ladies Fashion & Trending Dresses",
+                    "mobiles": "📱 High-Ticket Mobiles & Tech",
+                    "electronics": "💻 Electronics & Tech Gadgets",
+                    "toys": "🧸 Kids Toys & Games",
+                    "kitchen": "🍳 Home & Kitchen Finds",
+                    "beauty": "💄 Beauty & Personal Care",
+                    "all": "🌟 General / All Loot Deals"
+                }.get(x, x)
+            )
+            new_c_desc = st.text_input("Description", placeholder="e.g. Exclusively for trending sarees, kurtas, and dresses")
+            new_c_ig = st.text_input("Instagram Handle", placeholder="e.g. @feminastyle.in")
+            new_c_fb = st.text_input("Facebook Page ID", placeholder="e.g. 1029384756")
+            new_c_tg = st.text_input("Telegram Channel Username (Optional)", placeholder="e.g. @feminastyle_deals")
+            new_c_token = st.text_input("Meta Graph API Access Token (Optional)", type="password", placeholder="Leave blank to use global token or simulation")
+            new_c_aff = st.text_input("Custom Affiliate Tag Override (Optional)", placeholder="Leave blank to use global tag")
+
+            submitted = st.form_submit_button("Save Account Profile")
+            if submitted and new_c_name:
+                p_id = new_c_name.lower().replace(" ", "_").replace("(", "").replace(")", "")[:20]
+                profile_payload = {
+                    "id": p_id,
+                    "name": new_c_name,
+                    "focus_niche": new_c_niche,
+                    "description": new_c_desc,
+                    "instagram_username": new_c_ig,
+                    "facebook_page_id": new_c_fb,
+                    "telegram_channel_id": new_c_tg,
+                    "meta_access_token": new_c_token,
+                    "custom_affiliate_tag": new_c_aff
+                }
+                st.session_state.orchestrator.save_channel_profile(profile_payload)
+                st.success(f"Channel profile '{new_c_name}' created successfully!")
+                st.rerun()
+
+    # 3. Edit / Delete Existing Account Profile
+    with st.expander("✏️ Edit / Delete Existing Account", expanded=False):
+        edit_pid = st.selectbox(
+            "Select Account to Edit",
+            [p["id"] for p in all_profiles],
+            format_func=lambda pid: next((p["name"] for p in all_profiles if p["id"] == pid), pid)
+        )
+        target_p = next((p for p in all_profiles if p["id"] == edit_pid), None)
+        if target_p:
+            with st.form("form_edit_channel"):
+                ed_name = st.text_input("Account Display Name", value=target_p.get("name", ""))
+                ed_niche = st.selectbox(
+                    "Niche Focus",
+                    ["fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "all"],
+                    index=["fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "all"].index(target_p.get("focus_niche", "all")) if target_p.get("focus_niche") in ["fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "all"] else 0,
+                    format_func=lambda x: {
+                        "fashion": "👗 Ladies Fashion & Trending Dresses",
+                        "mobiles": "📱 High-Ticket Mobiles & Tech",
+                        "electronics": "💻 Electronics & Tech Gadgets",
+                        "toys": "🧸 Kids Toys & Games",
+                        "kitchen": "🍳 Home & Kitchen Finds",
+                        "beauty": "💄 Beauty & Personal Care",
+                        "all": "🌟 General / All Loot Deals"
+                    }.get(x, x)
+                )
+                ed_desc = st.text_input("Description", value=target_p.get("description", ""))
+                ed_ig = st.text_input("Instagram Handle", value=target_p.get("instagram_username", ""))
+                ed_fb = st.text_input("Facebook Page ID", value=target_p.get("facebook_page_id", ""))
+                ed_tg = st.text_input("Telegram Channel", value=target_p.get("telegram_channel_id", ""))
+                ed_sub = st.form_submit_button("Update Account")
+                if ed_sub:
+                    target_p["name"] = ed_name
+                    target_p["focus_niche"] = ed_niche
+                    target_p["description"] = ed_desc
+                    target_p["instagram_username"] = ed_ig
+                    target_p["facebook_page_id"] = ed_fb
+                    target_p["telegram_channel_id"] = ed_tg
+                    st.session_state.orchestrator.save_channel_profile(target_p)
+                    st.success("Account updated successfully!")
+                    st.rerun()
+
+            if len(all_profiles) > 1:
+                if st.button("🗑️ Delete This Account", key=f"del_{edit_pid}"):
+                    if st.session_state.orchestrator.delete_channel_profile(edit_pid):
+                        st.success("Account profile deleted.")
+                        st.rerun()
+
+    st.divider()
+
+    # 4. Common Global Affiliate Settings
+    st.markdown("### 🌐 Global Affiliate & Compliance Settings")
+    glob_cfg = st.session_state.orchestrator._load_config()
+    with st.form("form_global_settings"):
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            g_tag = st.text_input("Global Amazon Associate Tag", value=glob_cfg.get("affiliate", {}).get("amazon_associate_tag", "autoaffil-21"))
+            g_disc = st.text_input("Default Legal Disclosure Text", value=glob_cfg.get("affiliate", {}).get("default_disclosure_text", "#ad #affiliate #commissionsearned #amazondeals"))
+        with col_g2:
+            g_earnkaro = st.text_input("EarnKaro API Key / Publisher ID", value=glob_cfg.get("affiliate", {}).get("earnkaro_api_key", ""), placeholder="Optional for 150+ Indian brands")
+            g_target = st.number_input("Daily Revenue Target (INR)", min_value=100.0, max_value=100000.0, value=float(st.session_state.orchestrator.daily_target_inr), step=100.0)
+
+        if st.form_submit_button("Save Global Settings"):
+            if "affiliate" not in glob_cfg:
+                glob_cfg["affiliate"] = {}
+            glob_cfg["affiliate"]["amazon_associate_tag"] = g_tag
+            glob_cfg["affiliate"]["default_disclosure_text"] = g_disc
+            glob_cfg["affiliate"]["earnkaro_api_key"] = g_earnkaro
+            if "app" not in glob_cfg:
+                glob_cfg["app"] = {}
+            glob_cfg["app"]["daily_revenue_target_inr"] = float(g_target)
+            st.session_state.orchestrator.set_daily_target(float(g_target))
+            with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "settings.yaml"), "w", encoding="utf-8") as f:
+                yaml.safe_dump(glob_cfg, f, default_flow_style=False)
+            st.success("Global settings saved successfully!")
+            st.rerun()
+
+
+# ------------------------------------------------------------------------------
+# TAB 4: Scouted Deals Pipeline
 # ------------------------------------------------------------------------------
 with tab_deals:
     st.subheader("🛍️ Discovered Real Live Products")
@@ -543,55 +750,223 @@ with tab_posts:
 # TAB 5: Suggested Page Names & Setup Guide (Requirement #2)
 # ------------------------------------------------------------------------------
 with tab_pages:
-    st.subheader("🏷️ Suggested Social Media Page Names & Setup Steps")
+    st.subheader("🏷️ Social Media Setup, Affiliate Approval & High-Profit Platforms")
     st.markdown("""
-    Here are high-converting, brandable names for your new Instagram and Facebook pages:
+    Complete operational playbook for launching your automated affiliate business:
+    Setting up your Instagram & Facebook pages, getting approved for affiliate networks in India, and unlocking the highest-paying categories.
     """)
 
-    col_names1, col_names2 = st.columns(2)
-    with col_names1:
-        st.markdown("""
-        #### 🔥 Option A: All-Round Loot Deals & Tech (Recommended)
-        - **`@DealPulse.India`** / **DealPulse India**
-        - **`@LootBazaar.AI`** / **Loot Bazaar India**
-        - **`@DesiDropDeals`** / **Desi Drop Deals**
-        - **`@TrendingFinds.in`** / **Trending Finds Bharat**
+    sub_tab1, sub_tab2, sub_tab3, sub_tab4 = st.tabs([
+        "📱 Account Setup & Names",
+        "🛒 Amazon & EarnKaro Setup",
+        "💰 Most Profitable Platforms",
+        "🚀 Conversion & Bio Strategy"
+    ])
 
-        **Instagram Bio Template:**
-        ```text
-        ⚡ Finding the Internet's Best Deals & Hidden Finds
-        📱 Mobiles • Fashion • Smart Gadgets • Loot Offers
-        🔥 Daily Price Drops on Amazon & Flipkart
-        👇 Tap link below for today's exclusive discounts!
-        [Your Linktree / Deals Hub Link]
-        ```
+    # SUB-TAB 1: Account Setup & Names
+    with sub_tab1:
+        st.markdown("### 🎯 Recommended Names & Niches for Your Pages")
+        st.caption("You can run 1 general page or 2 dedicated niche pages (e.g. Ladies Fashion + Electronics) using the Common Settings tab.")
+
+        col_n1, col_n2, col_n3 = st.columns(3)
+        with col_n1:
+            st.markdown("""
+            #### 👗 Niche 1: Ladies Fashion
+            *Best for high commission % (7% - 10%) & viral aesthetic reels*
+            - **`@StyleDrop.India`** / StyleDrop India
+            - **`@FeminaFinds.in`** / Femina Finds Bharat
+            - **`@ChicWardrobe.in`** / Chic Wardrobe Deals
+            - **`@DesiGlamDeals`** / Desi Glam Deals
+
+            **Target Items:**
+            - Anarkali & Kurta sets
+            - Trending partywear sarees & dupattas
+            - Handbags, jewelry & viral makeup
+            """)
+
+        with col_n2:
+            st.markdown("""
+            #### ⚡ Niche 2: Electronics & Tech
+            *Best for high order values (₹15k - ₹80k) & festival sale spikes*
+            - **`@TechPulse.India`** / TechPulse India
+            - **`@GadgetLab.Bharat`** / GadgetLab Bharat
+            - **`@GizmoDeals.in`** / Gizmo Deals Daily
+            - **`@PrimeTechFinds`** / Prime Tech Finds
+
+            **Target Items:**
+            - Bestselling smartphones & tablets
+            - TWS earbuds, smartwatches & neckbands
+            - Laptops, gaming accessories & chargers
+            """)
+
+        with col_n3:
+            st.markdown("""
+            #### 🌟 Niche 3: All-Round Loot
+            *Best for maximum volume & everyday viral impulse buys*
+            - **`@DealPulse.India`** / DealPulse India
+            - **`@MegaLootBharat`** / Mega Loot Deals Bharat
+            - **`@DesiDropDeals`** / Desi Drop Deals
+            - **`@TrendingFinds.in`** / Trending Finds Bharat
+
+            **Target Items:**
+            - Under-₹999 smart kitchen hacks
+            - Lightning 50%-80% price drops
+            - Kids viral toys & home organization
+            """)
+
+        st.divider()
+        st.markdown("### 📋 Step-by-Step Meta (Instagram + Facebook) Page Setup")
+        with st.expander("Step 1: Create Your Instagram Account (5 Minutes)", expanded=True):
+            st.markdown("""
+            1. Open Instagram on your phone or browser $\\rightarrow$ Tap **Create New Account**.
+            2. Choose your handle (e.g. `@styledrop.in` or `@techpulse.india`).
+            3. Once logged in, go to your **Profile $\\rightarrow$ Settings & Privacy $\\rightarrow$ Account type and tools**.
+            4. Tap **Switch to Professional Account** $\\rightarrow$ Choose **Creator** (or **Business**).
+            5. Select Category: **Shopping & Retail** or **Digital Creator**.
+            *Why Creator? It gives you access to full analytics, link stickers in stories, and Meta Graph API auto-publishing.*
+            """)
+
+        with st.expander("Step 2: Create Your Matching Facebook Page (3 Minutes)"):
+            st.markdown("""
+            1. Go to [facebook.com/pages/create](https://www.facebook.com/pages/create) while logged into your personal FB profile.
+            2. Page Name: Match your Instagram handle (e.g. *StyleDrop India* or *TechPulse India*).
+            3. Category: **E-commerce Website** or **Shopping & Retail**.
+            4. Description: Short friendly summary (e.g. *Daily handpicked fashion & loot deals from Amazon, Flipkart, and Myntra with verified coupons.*).
+            5. Upload a clean profile logo (you can generate one with Canva or our Creative bot).
+            """)
+
+        with st.expander("Step 3: Connect Instagram to Facebook Page (Enables Automated Bot Posting)"):
+            st.markdown("""
+            1. In your Facebook Page, open **Meta Business Suite** ([business.facebook.com](https://business.facebook.com)).
+            2. Go to **Settings $\\rightarrow$ Linked Accounts $\\rightarrow$ Instagram**.
+            3. Click **Connect Account** and log in with your new Instagram credentials.
+            4. Allow permissions for messages and insights.
+            *Now, when the bot publishes to your Facebook Page, it automatically synchronizes to your Instagram feed and Reels!*
+            """)
+
+    # SUB-TAB 2: Amazon & EarnKaro Setup
+    with sub_tab2:
+        st.markdown("### 💳 How to Setup Affiliate Marketing (India Step-by-Step)")
+        st.caption("You will start with Amazon Associates India and EarnKaro. Together, they cover 100% of Indian e-commerce sites.")
+
+        col_a1, col_a2 = st.columns(2)
+        with col_a1:
+            st.markdown("""
+            #### 1. Amazon Associates India
+            - **Official Portal:** [affiliate-program.amazon.in](https://affiliate-program.amazon.in)
+            - **Commission:** 1% to 10% per sale
+            - **Cookie Duration:** 24 Hours (*If a user clicks your link and buys ANY item within 24 hours, you get paid!*)
+
+            **Registration Steps:**
+            1. Click **Sign Up** using your regular Amazon India customer account.
+            2. **Payee Details:** Enter your legal name as printed on your PAN card and Indian bank passbook.
+            3. **Website / Social Media URL:** When it asks for your website, **paste the URL of your new Instagram or Facebook page** (e.g. `https://instagram.com/styledrop.in`).
+            4. **Store ID:** Choose a custom tracking tag prefix (e.g. `styledrop-21`).
+            5. **PAN & Tax Info:** Enter your PAN number for Indian TDS compliance (Amazon deposits monthly earnings directly via NEFT into your bank).
+            6. **SiteStripe:** Once logged in to Amazon.in, you will see a grey bar at the top called **SiteStripe** that gives you instant 1-click affiliate links!
+            > [!TIP]
+            > **The 180-Day Rule:** Amazon gives you 180 days to generate your first 3 qualifying purchases from real users. Our automated bot posting makes this effortless within your first 1-2 weeks!
+            """)
+
+        with col_a2:
+            st.markdown("""
+            #### 2. EarnKaro (Instant Approval for Flipkart, Myntra, Ajio, Nykaa)
+            - **Official Portal:** [earnkaro.com](https://earnkaro.com) or download EarnKaro Android/iOS App
+            - **Supported Stores:** Flipkart, Myntra, Ajio, Tata 1mg, Nykaa, Mamaearth, Croma, Samsung (150+ brands)
+            - **Commission:** 3% to 15% per sale
+            - **Minimum Payout:** ₹10 directly to your Bank Account!
+
+            **Registration Steps:**
+            1. Download EarnKaro app or visit website $\\rightarrow$ Sign up with your Indian Mobile Number & OTP.
+            2. **Zero approval waiting period:** Your account is active instantly from minute 1!
+            3. **How it works:** Take ANY product link from Flipkart, Myntra, or Ajio $\\rightarrow$ Paste into EarnKaro "Make Links" $\\rightarrow$ It generates your custom profit link.
+            4. In the AutoAffiliate app under **⚙️ Common Settings**, paste your EarnKaro API key / Publisher ID to automate link generation!
+            """)
+
+        st.divider()
+        st.markdown("### ⚖️ Legal Compliance & Disclosure (FTC & ASCI Guidelines)")
+        st.info("""
+        **Indian ASCI (Advertising Standards Council of India) Requirement:**
+        Always include clear disclosures in your posts so Meta and Amazon never restrict your account.
+        Our Creative Bot automatically appends:
+        `#ad #affiliate #sponsored #commissionsearned #amazondeals`
+        at the end of every generated caption and reel script.
         """)
 
-    with col_names2:
+    # SUB-TAB 3: Most Profitable Platforms
+    with sub_tab3:
+        st.markdown("### 🏆 Most Profitable Affiliate Categories & Platforms in India")
         st.markdown("""
-        #### 👗 Option B: Lifestyle & Fashion Deals
-        - **`@StyleDropIndia`** / **Style Drop India**
-        - **`@FestiveFinds.in`** / **Festive Finds India**
-        - **`@BudgetChicBharat`** / **Budget Chic Bharat**
-
-        **Facebook Page Category:**
-        - Select: **E-commerce Website** or **Retail Company** or **Shopping & Retail**.
+        Not all products pay equal commissions. Mixing high-commission impulse items with high-ticket electronics and financial products is how you scale from ₹500/day to ₹5,000/day.
         """)
 
-    st.divider()
-    st.markdown("### 📋 Step-by-Step Page Setup Instructions")
-    st.markdown("""
-    1. **Create Instagram Account**: Open Instagram app $\\rightarrow$ Create new account with your chosen name (e.g. `dealpulse.india`).
-    2. **Switch to Professional / Creator Account**:
-       - Go to Settings $\\rightarrow$ Account Type $\\rightarrow$ Switch to **Creator Account**.
-       - Choose category: **Digital Creator** or **Shopping & Retail**.
-    3. **Create Facebook Page**:
-       - Open Facebook $\\rightarrow$ Pages $\\rightarrow$ Create New Page with matching name.
-       - Connect your Instagram account in Facebook Page Settings $\\rightarrow$ **Linked Accounts**.
-    4. **Link in Bio**:
-       - Create a free landing page using Linktree or Beacons (e.g., `linktr.ee/yourpagename`).
-       - Put your top product links and your Telegram channel link here.
-    """)
+        # Profitability Comparison Table
+        prof_data = [
+            {"Niche / Product Type": "👗 Ladies Fashion, Sarees & Ethnic", "Typical Commission": "7.0% - 10.0%", "Average Order": "₹899 - ₹2,499", "Earnings Per Sale": "₹70 - ₹250", "Virality / Conversion": "Very High 🔥 (Reels go viral easily)"},
+            {"Niche / Product Type": "💄 Beauty, Skincare & Personal Care", "Typical Commission": "6.0% - 9.0%", "Average Order": "₹599 - ₹1,499", "Earnings Per Sale": "₹45 - ₹135", "Virality / Conversion": "High (Repeat buyers)"},
+            {"Niche / Product Type": "🍳 Smart Kitchen & Home Hacks", "Typical Commission": "6.0% - 9.0%", "Average Order": "₹499 - ₹1,299", "Earnings Per Sale": "₹40 - ₹110", "Virality / Conversion": "Very High 🔥 (Impulse purchase)"},
+            {"Niche / Product Type": "📱 Smartphones & Smartwatches", "Typical Commission": "1.0% - 2.5%", "Average Order": "₹15,000 - ₹60,000", "Earnings Per Sale": "₹200 - ₹1,200", "Virality / Conversion": "High volume during Sale Events"},
+            {"Niche / Product Type": "💳 Credit Cards (HDFC/SBI/Axis/AU)", "Typical Commission": "Flat Payout", "Average Order": "Free Application", "Earnings Per Sale": "₹1,500 - ₹3,500 / card", "Virality / Conversion": "Extreme Profit (BankSathi / EarnKaro)"},
+            {"Niche / Product Type": "🌐 Web Hosting & Tools (Hostinger)", "Typical Commission": "40% - 60%", "Average Order": "₹3,500 - ₹8,000", "Earnings Per Sale": "₹1,800 - ₹4,500", "Virality / Conversion": "Highest SaaS payout"}
+        ]
+        st.dataframe(pd.DataFrame(prof_data), use_container_width=True)
+
+        st.markdown("#### 💎 The 4 Most Profitable Networks to Join:")
+        c_net1, c_net2 = st.columns(2)
+        with c_net1:
+            st.markdown("""
+            **1. EarnKaro / CashKaro (E-commerce Aggregator):**
+            - Highest overall Indian payout rates.
+            - Lets you monetize Flipkart Big Billion Days and Amazon Great Indian Festival seamlessly.
+
+            **2. BankSathi / vCommission (Financial Products):**
+            - Allows you to recommend pre-approved credit cards (e.g. Swiggy HDFC Card, Flipkart Axis Card) and saving accounts.
+            - Just 2 card approvals a day = ₹3,000+ daily profit!
+            """)
+        with c_net2:
+            st.markdown("""
+            **3. Cuelinks (Sub-Affiliate Network):**
+            - Single JavaScript code or API for 1,000+ Indian merchants.
+            - Automatically converts normal e-commerce links into affiliate links with high tracking accuracy.
+
+            **4. Impact.com / CJ Affiliate (Global Brands):**
+            - Direct partnerships with Lenovo India, Samsung, Puma, Nike, and Hostinger.
+            """)
+
+    # SUB-TAB 4: Conversion & Bio Strategy
+    with sub_tab4:
+        st.markdown("### 🚀 The High-Converting 2-Week Blueprint")
+        st.markdown("""
+        How to reach your **₹500/day minimum income** within the 2-week target:
+        """)
+
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            st.markdown("""
+            #### 1. The "Bio Link" Machine
+            Since Instagram doesn't let you put clickable links inside post captions:
+            - Set up a free **Linktree** ([linktr.ee](https://linktr.ee)) or **Beacons** ([beacons.ai](https://beacons.ai)).
+            - Put the link in your Instagram Profile bio: `linktr.ee/styledrop_india`.
+            - In every reel and post caption, the bot writes:
+              `👉 Tap the link in our bio (@styledrop.india) to grab this deal before price increases!`
+            - Put your top 5 scouted deals on your Linktree with direct affiliate links.
+
+            #### 2. The Free Telegram Channel Funnel (Secret Multiplier)
+            - People love instant loot alerts on Telegram.
+            - Create a public Telegram channel (e.g. `t.me/MegaLootDealsIndia`).
+            - Put this Telegram link in your Instagram bio and stories.
+            - On Telegram, users click affiliate links **directly in 1-tap** without opening any browser! Conversion rate jumps from 2% to 15%.
+            """)
+
+        with col_b2:
+            st.markdown("""
+            #### 3. Recommended 14-Day Action Schedule:
+            - **Days 1 - 2:** Create Instagram + FB accounts, link them in Meta Business Suite, sign up on Amazon Associates & EarnKaro.
+            - **Days 3 - 5:** Run AutoAffiliate bot in Single or Multi-Channel mode. Post 2 to 3 high-converting Reels/Carousels daily at peak hours (12:30 PM, 6:30 PM, 9:00 PM).
+            - **Days 6 - 8:** Use the Engagement Bot (`EngagerAgent`) to follow and interact with followers of competing deal pages (`@lootdealsindia`, `@dealfinder`).
+            - **Days 9 - 14:** Share posts to your Instagram Stories with the **Link Sticker** leading directly to the Amazon product. Daily clicks cross 50-100, reaching your ₹500/day target!
+            """)
+
 
 
 # ------------------------------------------------------------------------------

@@ -37,19 +37,32 @@ class AutonomousAgentDaemon:
 
     def run_one_autonomous_cycle(self) -> dict:
         """Executes one hands-free cycle: Find -> Create -> Publish -> Engage."""
-        category = self.categories[self.current_cat_idx % len(self.categories)]
+        channel_mode = self.orchestrator.get_channel_mode()
+        profiles = self.orchestrator.get_channel_profiles()
+
+        if channel_mode == "multi_channel" and profiles:
+            current_profile = profiles[self.current_cat_idx % len(profiles)]
+            category = current_profile.get("focus_niche", "all")
+            if category == "all":
+                category = self.categories[self.current_cat_idx % len(self.categories)]
+        else:
+            current_profile = self.orchestrator.get_active_profile()
+            category = current_profile.get("focus_niche", "all")
+            if category == "all":
+                category = self.categories[self.current_cat_idx % len(self.categories)]
+
         self.current_cat_idx += 1
         self.cycle_count += 1
         self.last_run_time = datetime.now()
 
         log_agent_action(
             "AutoDaemon",
-            f"Autonomous Cycle #{self.cycle_count} Started for Category: '{category.upper()}'",
+            f"Autonomous Cycle #{self.cycle_count} Started for Channel [{current_profile.get('name')}] in '{category.upper()}'",
             "started"
         )
 
         try:
-            # 1. Scout 1 top live product in the current rotated category
+            # 1. Scout 1 top live product matching the target channel niche
             products = self.orchestrator.scout.scout_trending_products(
                 category=category,
                 count=1,
@@ -69,11 +82,12 @@ class AutonomousAgentDaemon:
 
             target_product = products[0]
 
-            # 2. Automatically generate high-converting post and Pillow 1080x1080 banner
+            # 2. Automatically generate high-converting post and Pillow 1080x1080 banner / video
             post = self.orchestrator.creative.generate_content_for_product(target_product)
+            post["target_channel"] = current_profile.get("id")
 
-            # 3. Automatically publish immediately (No human approval needed)
-            publish_res = self.orchestrator.marketer.publish_approved_post(post)
+            # 3. Automatically publish to the specific channel account
+            publish_res = self.orchestrator.marketer.publish_approved_post(post, channel_profile=current_profile)
 
             # 4. Automatically run safe audience engagement
             engagement_res = self.orchestrator.marketer.scout_and_engage_with_target_audience(

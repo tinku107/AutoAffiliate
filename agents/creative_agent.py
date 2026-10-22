@@ -67,7 +67,17 @@ class CreativeAgent:
         short_title = title.split("(")[0].split("-")[0].strip()[:42]
 
         # Authentic humanoid copy per niche (Zero icons, zero decorative special characters)
-        if "fashion" in category or "dress" in category or "kurta" in title.lower() or "saree" in title.lower():
+        if "men" in category or "mens_fashion" in category or "mens" in title.lower() or ("shirt" in title.lower() and "women" not in title.lower()):
+            hooks = [
+                f"Spotted a really clean piece while checking deals today: {short_title}.",
+                f"If you need versatile everyday shirts or sneakers, take a look at {short_title}.",
+                f"Sharing a solid discount on {short_title} today."
+            ]
+            feature_summary = "The fabric blend is durable, comfortable for all-day wear, and holds shape well."
+            use_case = "Great for office wear, weekend outings, or casual everyday layering."
+            hashtags = "#mensfashion #menswear #menstyle #outfitideas #dailydeals #smartshopping"
+
+        elif "fashion" in category or "dress" in category or "kurta" in title.lower() or "saree" in title.lower():
             hooks = [
                 f"Found a really pretty option while checking deals today: {short_title}.",
                 f"If you are looking for comfortable ethnic wear, take a look at {short_title}.",
@@ -76,6 +86,7 @@ class CreativeAgent:
             feature_summary = "The fabric feels breathable and the stitching details look very neat in person."
             use_case = "Works nicely for festive gatherings, family functions, or everyday casual styling."
             hashtags = "#fashion #indianfashion #ethnicwear #kurtis #sarees #outfitideas #dailydeals"
+
 
         elif "mobile" in category or "electronic" in category or "tech" in category or deal_price > 15000:
             hooks = [

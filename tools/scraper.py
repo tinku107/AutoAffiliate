@@ -28,6 +28,7 @@ class ProductScraper:
             "mobiles": "https://www.amazon.in/gp/bestsellers/electronics/1389401031",
             "electronics": "https://www.amazon.in/gp/bestsellers/electronics",
             "fashion": "https://www.amazon.in/gp/bestsellers/apparel",
+            "mens_fashion": "https://www.amazon.in/gp/bestsellers/apparel/1968024031",
             "toys": "https://www.amazon.in/gp/bestsellers/toys",
             "kitchen": "https://www.amazon.in/gp/bestsellers/kitchen",
             "beauty": "https://www.amazon.in/gp/bestsellers/beauty",
@@ -40,11 +41,13 @@ class ProductScraper:
             "mobiles": "smartphones",
             "electronics": "electronics gadgets",
             "fashion": "women dresses clothing",
+            "mens_fashion": "men shirts jeans clothing",
             "toys": "kids toys games",
             "kitchen": "kitchen appliances",
             "beauty": "beauty grooming",
             "movers": "trending deals today"
         }
+
 
     def _get_headers(self, referer: str = "https://www.google.com/") -> Dict[str, str]:
         return {

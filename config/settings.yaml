@@ -39,6 +39,17 @@ channel_profiles:
   telegram_bot_token: ''
   telegram_channel_id: ''
 - custom_affiliate_tag: ''
+  description: 'Niche focus: Exclusively Men Clothing, Formal and Casual Shirts, Jeans, Sneakers and Grooming'
+  enabled_for_autopilot: false
+  facebook_page_id: ''
+  focus_niche: mens_fashion
+  id: mens_fashion
+  instagram_username: ''
+  meta_access_token: ''
+  name: UrbanGent India (Men's Fashion)
+  telegram_bot_token: ''
+  telegram_channel_id: ''
+- custom_affiliate_tag: ''
   description: 'Common focus: Scrapes top trending deals across all categories (Mobiles,
     Dresses, Gadgets, Toys)'
   enabled_for_autopilot: false
@@ -50,6 +61,7 @@ channel_profiles:
   name: Mega Loot Deals (General)
   telegram_bot_token: ''
   telegram_channel_id: ''
+
 dynamic_schedule:
   anti_ban_mode: true
   human_jitter_sec_max: 90

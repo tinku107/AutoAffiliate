@@ -166,14 +166,14 @@ class AgentOrchestrator:
             self.config = cfg
             log_agent_action("Orchestrator", f"Saved channel profile: {profile_data.get('name')}", "completed")
         except Exception as e:
-            print(f"Error saving channel profile: {e}")
+            print(f"Error saving profile: {e}")
 
     def delete_channel_profile(self, profile_id: str) -> bool:
         """Deletes a channel profile."""
         cfg = self._load_config()
         profiles = cfg.get("channel_profiles", [])
         if len(profiles) <= 1:
-            return False  # Prevent deleting only profile
+            return False
         new_profiles = [p for p in profiles if p.get("id") != profile_id]
         cfg["channel_profiles"] = new_profiles
         if cfg.get("active_profile_id") == profile_id:
@@ -187,6 +187,89 @@ class AgentOrchestrator:
         except Exception as e:
             print(f"Error deleting profile: {e}")
             return False
+
+    def get_niche_mappings(self) -> List[Dict[str, Any]]:
+
+        """Returns the list of configured niches and their mapped channel accounts."""
+        cfg = self._load_config()
+        default_niches = [
+            {
+                "id": "fashion",
+                "name": "Ladies Fashion & Ethnic",
+                "keywords": "women dress, anarkali kurti, saree, lehenga, ethnic wear",
+                "mapped_account_id": "fashion",
+                "commission_rate": "7% - 10%"
+            },
+            {
+                "id": "mobiles",
+                "name": "High-Ticket Mobiles & Tech",
+                "keywords": "smartphones, iphone 16, samsung galaxy, flagship phones",
+                "mapped_account_id": "electronics",
+                "commission_rate": "1% - 2.5%"
+            },
+            {
+                "id": "mens_fashion",
+                "name": "Men's Fashion & Grooming",
+                "keywords": "men shirts, men jeans, formal suits, sneakers, grooming",
+                "mapped_account_id": "mens_fashion",
+                "commission_rate": "6% - 9%"
+            },
+            {
+                "id": "electronics",
+                "name": "Smart Gadgets & Electronics",
+                "keywords": "earbuds, smartwatches, power banks, desk gadgets",
+                "mapped_account_id": "electronics",
+                "commission_rate": "4% - 6%"
+            },
+            {
+                "id": "kitchen",
+                "name": "Home & Kitchen Hacks",
+                "keywords": "kitchen tools, cookware, food organizers, storage hacks",
+                "mapped_account_id": "general",
+                "commission_rate": "6% - 9%"
+            }
+        ]
+        return cfg.get("niche_mappings", default_niches)
+
+    def save_niche_mapping(self, mapping_data: Dict[str, Any]):
+        """Adds or updates a niche mapping."""
+        cfg = self._load_config()
+        mappings = self.get_niche_mappings()
+        nid = mapping_data.get("id") or mapping_data.get("name", "niche").lower().replace(" ", "_")
+        mapping_data["id"] = nid
+        found = False
+        for idx, m in enumerate(mappings):
+            if m.get("id") == nid:
+                mappings[idx] = mapping_data
+                found = True
+                break
+        if not found:
+            mappings.append(mapping_data)
+        cfg["niche_mappings"] = mappings
+        try:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, default_flow_style=False)
+            self.config = cfg
+            log_agent_action("Orchestrator", f"Saved niche mapping: {mapping_data.get('name')} -> {mapping_data.get('mapped_account_id')}", "completed")
+        except Exception as e:
+            print(f"Error saving niche mapping: {e}")
+
+    def delete_niche_mapping(self, niche_id: str) -> bool:
+        """Deletes a niche mapping."""
+        cfg = self._load_config()
+        mappings = self.get_niche_mappings()
+        new_mappings = [m for m in mappings if m.get("id") != niche_id]
+        cfg["niche_mappings"] = new_mappings
+        try:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, default_flow_style=False)
+            self.config = cfg
+            log_agent_action("Orchestrator", f"Deleted niche mapping #{niche_id}", "completed")
+            return True
+        except Exception as e:
+            print(f"Error deleting niche mapping: {e}")
+            return False
+
 
 
     def test_next_product(

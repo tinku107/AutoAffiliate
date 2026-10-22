@@ -114,12 +114,41 @@ class AgentOrchestrator:
         except Exception as e:
             print(f"Error saving active profile: {e}")
 
+    def get_enabled_autopilot_profiles(self) -> List[Dict[str, Any]]:
+        """Returns the list of profiles that the user has enabled for autonomous posting."""
+        profiles = self.get_channel_profiles()
+        enabled = [p for p in profiles if p.get("enabled_for_autopilot", False)]
+        if not enabled and profiles:
+            # Fallback to first profile if none explicitly enabled
+            return [profiles[0]]
+        return enabled
+
+    def set_profile_autopilot_enabled(self, profile_id: str, enabled: bool):
+        """Enables or disables an individual channel profile for autopilot."""
+        cfg = self._load_config()
+        profiles = cfg.get("channel_profiles", [])
+        for p in profiles:
+            if p.get("id") == profile_id:
+                p["enabled_for_autopilot"] = bool(enabled)
+                break
+        cfg["channel_profiles"] = profiles
+        try:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, default_flow_style=False)
+            self.config = cfg
+            status_str = "ENABLED" if enabled else "DISABLED"
+            log_agent_action("Orchestrator", f"Channel profile #{profile_id} autopilot {status_str}", "completed")
+        except Exception as e:
+            print(f"Error updating profile autopilot status: {e}")
+
     def save_channel_profile(self, profile_data: Dict[str, Any]):
         """Adds or updates a channel profile."""
         cfg = self._load_config()
         profiles = cfg.get("channel_profiles", [])
         pid = profile_data.get("id") or profile_data.get("name", "channel").lower().replace(" ", "_")
         profile_data["id"] = pid
+        if "enabled_for_autopilot" not in profile_data:
+            profile_data["enabled_for_autopilot"] = True
 
         found = False
         for idx, p in enumerate(profiles):
@@ -158,6 +187,7 @@ class AgentOrchestrator:
         except Exception as e:
             print(f"Error deleting profile: {e}")
             return False
+
 
     def test_next_product(
         self,
@@ -205,7 +235,7 @@ class AgentOrchestrator:
 
         self.test_counter += 1
 
-        post = self.creative.generate_content_for_product(target_prod)
+        post = self.creative.generate_content_for_product(target_prod, channel_niche=category)
 
         log_agent_action("Orchestrator", f"Test product #{self.test_counter} ready: [{target_prod['platform']}] {target_prod['title'][:35]}", "completed")
         return {
@@ -216,44 +246,62 @@ class AgentOrchestrator:
             "post": post
         }
 
-    def run_full_daily_autonomous_cycle(self, category: Optional[str] = None, channel_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def run_profile_autonomous_cycle(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Executes the complete autonomous daily cycle:
-        1. Scout 3 trending viral deals dynamically for the target channel
-        2. Generate complete posts (captions, reel scripts, image graphics)
-        3. Publish the top-rated post to Instagram & Facebook
-        4. Run humanized target audience engagement
-        5. Update progress towards target INR X
+        Executes an independent autonomous cycle for a single channel profile:
+        1. Scouts a live product matching the profile's dedicated focus_niche
+        2. Generates humanoid copy (zero icons/special characters) tailored to that niche
+        3. Publishes to that profile's specific Instagram & Facebook accounts
+        4. Runs organic audience growth (likes, comments, follower invites) in that niche
         """
-        prof = channel_profile or self.get_active_profile()
-        target_cat = category or prof.get("focus_niche", "all")
+        prof_name = profile.get("name", "Channel")
+        target_niche = profile.get("focus_niche", "all")
+        log_agent_action("Orchestrator", f"Starting independent cycle for [{prof_name}] in niche '{target_niche}'", "started")
 
-        log_agent_action("Orchestrator", f"Initiating Autonomous Cycle ({target_cat}) for [{prof.get('name')}]", "started")
+        products = self.scout.scout_trending_products(category=target_niche, count=1, target_profit=self.daily_target_inr)
+        if not products:
+            products = self.scout.scout_trending_products(category="all", count=1, target_profit=self.daily_target_inr)
 
-        products = self.scout.scout_trending_products(category=target_cat, count=3, target_profit=self.daily_target_inr)
+        if not products:
+            return {"success": False, "channel": prof_name, "error": "No products discovered"}
 
-        created_posts = []
-        for prod in products:
-            post = self.creative.generate_content_for_product(prod)
-            post["target_channel"] = prof.get("id")
-            created_posts.append(post)
+        prod = products[0]
+        post = self.creative.generate_content_for_product(prod, channel_niche=target_niche)
+        post["target_channel"] = profile.get("id")
 
-        publish_result = {}
-        if created_posts:
-            publish_result = self.marketer.publish_approved_post(created_posts[0], channel_profile=prof)
+        publish_res = self.marketer.publish_approved_post(post, channel_profile=profile)
+        growth_res = self.marketer.grow_audience_and_engage(niche=target_niche, channel_profile=profile, count=2)
 
-        engagement = self.marketer.scout_and_engage_with_target_audience(niche=target_cat if target_cat != "all" else "deals", count=3)
-
-        log_agent_action("Orchestrator", f"Autonomous Cycle Completed for [{prof.get('name')}]", "completed")
+        summary = f"Completed independent cycle for [{prof_name}]: Posted {prod['title'][:35]} and ran {len(growth_res)} organic growth actions."
+        log_agent_action("Orchestrator", summary, "completed")
 
         return {
-            "channel": prof.get("name"),
-            "scouted_count": len(products),
-            "created_posts_count": len(created_posts),
-            "published_post": publish_result,
-            "engagement_actions": len(engagement),
-            "summary": f"Autonomous cycle finished for [{prof.get('name')}]: Discovered {len(products)} deals in '{target_cat}', generated {len(created_posts)} posts, published Top Deal #{created_posts[0]['id'] if created_posts else 'N/A'}, and completed {len(engagement)} organic interactions."
+            "success": True,
+            "channel": prof_name,
+            "channel_id": profile.get("id"),
+            "product": prod,
+            "post": post,
+            "published": publish_res,
+            "growth_actions": len(growth_res)
         }
+
+    def run_all_enabled_autopilot_cycles(self) -> List[Dict[str, Any]]:
+        """
+        Runs autonomous cycles for all user-selected active channels independently.
+        Ladies fashion posts to ladies pages, electronics posts to electronics pages.
+        """
+        enabled_profiles = self.get_enabled_autopilot_profiles()
+        results = []
+        for prof in enabled_profiles:
+            res = self.run_profile_autonomous_cycle(prof)
+            results.append(res)
+        return results
+
+    def run_full_daily_autonomous_cycle(self, category: Optional[str] = None, channel_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Runs cycle for active profile (backwards compatible)."""
+        prof = channel_profile or self.get_active_profile()
+        return self.run_profile_autonomous_cycle(prof)
+
 
     def process_chat_command(self, user_prompt: str) -> Dict[str, Any]:
         """

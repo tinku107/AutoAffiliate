@@ -494,27 +494,17 @@ class ProductScraper:
             return combined[:limit] if combined else (amz_items or fk_items)
 
     def fetch_product_by_url(self, url: str) -> Optional[Dict[str, Any]]:
-        """Extracts product details and multiple pictures from any Amazon/Flipkart URL."""
+        """Extracts product details and pictures from Amazon, Flipkart, Myntra, Nykaa, Ajio, Meesho, or ANY custom URL."""
         headers = self._get_headers(referer=url)
         try:
             resp = requests.get(url, headers=headers, timeout=12)
             if resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "html.parser")
-                is_flipkart = "flipkart" in url.lower()
-                platform = "Flipkart" if is_flipkart else "Amazon"
+                url_lower = url.lower()
 
-                if is_flipkart:
-                    title_elem = soup.find("span", {"class": re.compile(r"B_NuCI|VU-ZEz")})
-                    title = title_elem.get_text().strip() if title_elem else "Flipkart Deal"
-                    price_elem = soup.find("div", {"class": re.compile(r"Nx9bqj|_30jeq3")})
-                    price = self._parse_price_number(price_elem.get_text()) if price_elem else 0.0
-                    mrp_elem = soup.find("div", {"class": re.compile(r"yRaY8j|_3I9_wc")})
-                    mrp = self._parse_price_number(mrp_elem.get_text()) if mrp_elem else round(price * 1.35, 2)
-                    img_elem = soup.find("img", {"class": re.compile(r"DByuf4|_396cs4")})
-                    img_url = img_elem["src"] if img_elem and "src" in img_elem.attrs else ""
-                    pid_match = re.search(r"pid=([A-Z0-9]+)", url)
-                    pid = pid_match.group(1) if pid_match else f"FK_{int(time.time())}"
-                else:
+                # 1. Amazon Parsing
+                if "amazon" in url_lower:
+                    platform = "Amazon"
                     title_elem = soup.find("span", {"id": "productTitle"})
                     title = title_elem.get_text().strip() if title_elem else "Featured Amazon Product"
                     price_elem = soup.find("span", {"class": "a-price-whole"})
@@ -526,8 +516,71 @@ class ProductScraper:
                     asin_match = re.search(r"/(?:dp|gp/product)/([A-Z0-9]{10})", url)
                     pid = asin_match.group(1) if asin_match else f"AMZ_{int(time.time())}"
 
+                # 2. Flipkart Parsing
+                elif "flipkart" in url_lower:
+                    platform = "Flipkart"
+                    title_elem = soup.find("span", {"class": re.compile(r"B_NuCI|VU-ZEz")})
+                    title = title_elem.get_text().strip() if title_elem else "Flipkart Deal"
+                    price_elem = soup.find("div", {"class": re.compile(r"Nx9bqj|_30jeq3")})
+                    price = self._parse_price_number(price_elem.get_text()) if price_elem else 0.0
+                    mrp_elem = soup.find("div", {"class": re.compile(r"yRaY8j|_3I9_wc")})
+                    mrp = self._parse_price_number(mrp_elem.get_text()) if mrp_elem else round(price * 1.35, 2)
+                    img_elem = soup.find("img", {"class": re.compile(r"DByuf4|_396cs4")})
+                    img_url = img_elem["src"] if img_elem and "src" in img_elem.attrs else ""
+                    pid_match = re.search(r"pid=([A-Z0-9]+)", url)
+                    pid = pid_match.group(1) if pid_match else f"FK_{int(time.time())}"
+
+                # 3. Universal Multi-Platform Parsing (Myntra, Nykaa, Ajio, Meesho, Croma, etc.)
+                else:
+                    domain_match = re.search(r"https?://(?:www\.)?([^/]+)", url)
+                    domain_raw = domain_match.group(1) if domain_match else "Store"
+                    platform = domain_raw.split(".")[0].capitalize()
+
+                    # Extract OpenGraph / Meta Data
+                    og_title = soup.find("meta", {"property": "og:title"}) or soup.find("meta", {"name": "twitter:title"})
+                    title = og_title["content"].strip() if og_title and "content" in og_title.attrs else (soup.title.string.strip() if soup.title else f"{platform} Product")
+
+                    og_img = soup.find("meta", {"property": "og:image"}) or soup.find("meta", {"name": "twitter:image"})
+                    img_url = og_img["content"].strip() if og_img and "content" in og_img.attrs else ""
+
+                    # Attempt price extraction via JSON-LD Schema
+                    price = 0.0
+                    mrp = 0.0
+                    for script in soup.find_all("script", {"type": "application/ld+json"}):
+                        try:
+                            import json
+                            data = json.loads(script.string or "{}")
+                            if isinstance(data, list):
+                                data = data[0] if data else {}
+                            if "offers" in data:
+                                offers = data["offers"]
+                                if isinstance(offers, list):
+                                    offers = offers[0] if offers else {}
+                                price = float(offers.get("price", 0.0))
+                                if "highPrice" in offers:
+                                    mrp = float(offers.get("highPrice", 0.0))
+                        except Exception:
+                            continue
+
+                    # Fallback price from og:price:amount or regex
+                    if price == 0.0:
+                        p_meta = soup.find("meta", {"property": re.compile(r"price|amount", re.I)})
+                        if p_meta and "content" in p_meta.attrs:
+                            price = self._parse_price_number(p_meta["content"])
+                        else:
+                            text_match = re.search(r"(?:₹|Rs\.?|INR)\s*([\d,]+)", resp.text)
+                            if text_match:
+                                price = self._parse_price_number(text_match.group(1))
+
+                    if mrp == 0.0 or mrp <= price:
+                        mrp = round(price * 1.3, 2) if price > 0 else 0.0
+
+                    pid = f"{platform.upper()}_{abs(hash(url)) % 1000000}"
+
                 discount_pct = round(((mrp - price) / mrp) * 100, 1) if mrp > price and price > 0 else 0.0
                 gallery_images = self.extract_gallery_images(url, primary_img_url=img_url, max_images=4)
+                if not gallery_images and img_url:
+                    gallery_images = [img_url]
 
                 return {
                     "product_id": pid,

@@ -196,90 +196,87 @@ with st.sidebar:
 # 24/7 AUTONOMOUS AGENTIC AUTOPILOT DECK
 # ==============================================================================
 daemon = get_auto_daemon()
-
-ap_col1, ap_col2, ap_col3 = st.columns([2.5, 1.2, 1.3])
-with ap_col1:
-    if daemon.is_running:
-        last_str = daemon.last_run_time.strftime("%I:%M %p") if daemon.last_run_time else "Just started"
-        next_str = daemon.next_run_time.strftime("%I:%M %p") if daemon.next_run_time else "Calculating..."
-        st.markdown(f"""
-        <div style="background:#064e3b; border:1px solid #059669; border-radius:10px; padding:12px;">
-            <strong style="color:#34d399; font-size:1.05rem;">🟢 24/7 AUTONOMOUS AUTOPILOT ACTIVE (Zero Clicks Needed)</strong><br>
-            <small style="color:#d1fae5;">Cycle #{daemon.cycle_count} running • Last posted: {last_str} • Next scheduled post: {next_str}</small>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style="background:#1e1b4b; border:1px solid #4338ca; border-radius:10px; padding:12px;">
-            <strong style="color:#a5b4fc; font-size:1.05rem;">⏸️ AUTOPILOT STANDBY (Manual Supervised Mode)</strong><br>
-            <small style="color:#c7d2fe;">Turn on to let the agents find deals, design graphics, and post 100% autonomously.</small>
-        </div>
-        """, unsafe_allow_html=True)
-
-with ap_col2:
-    interval_hrs = st.selectbox(
-        "Posting Interval",
-        [1.0, 2.0, 3.0, 4.0, 6.0],
-        index=1,
-        format_func=lambda x: f"Every {int(x)} Hours",
-        disabled=daemon.is_running,
-        key="sel_interval"
-    )
-
-with ap_col3:
-    st.markdown("<br>", unsafe_allow_html=True)
-    if daemon.is_running:
-        if st.button("⏸️ PAUSE AUTOPILOT", use_container_width=True, key="btn_stop_ap"):
-            daemon.stop_background_loop()
-            st.rerun()
-    else:
-        if st.button("🚀 START 24/7 AUTOPILOT", use_container_width=True, key="btn_start_ap"):
-            daemon.interval_seconds = int(interval_hrs * 3600)
-            daemon.start_background_loop()
-            st.rerun()
-
-# ==============================================================================
-# ACTIVE CHANNEL PROFILE & FOCUS STRATEGY BAR
-# ==============================================================================
-profiles = st.session_state.orchestrator.get_channel_profiles()
+all_profiles = st.session_state.orchestrator.get_channel_profiles()
+enabled_profiles = st.session_state.orchestrator.get_enabled_autopilot_profiles()
 active_prof = st.session_state.orchestrator.get_active_profile()
-channel_mode = st.session_state.orchestrator.get_channel_mode()
 
-chan_c1, chan_c2, chan_c3 = st.columns([2.4, 1.8, 1.2])
-with chan_c1:
-    profile_ids = [p["id"] for p in profiles]
-    curr_idx = profile_ids.index(active_prof["id"]) if active_prof["id"] in profile_ids else 0
-    chosen_pid = st.selectbox(
-        "🎯 Active Social Media Account",
-        profile_ids,
-        index=curr_idx,
-        format_func=lambda pid: next((f"{p['name']} — [{p.get('focus_niche', 'all').upper()}]" for p in profiles if p["id"] == pid), pid),
-        help="Select which Instagram/Facebook account you want the bots to focus on"
-    )
-    if chosen_pid != active_prof["id"]:
-        st.session_state.orchestrator.set_active_profile(chosen_pid)
-        st.toast(f"Active channel set to {chosen_pid}!", icon="🎯")
-        st.rerun()
+with st.container():
+    st.markdown("### 🤖 Autonomous Multi-Channel Autopilot Deck")
+    st.caption("Select which channel(s) to run on Autopilot. Each selected account operates 100% independently: Ladies fashion posts exclusively to ladies pages, electronics posts to electronics pages.")
 
-with chan_c2:
-    strat_mode = st.selectbox(
-        "Channel Strategy",
-        ["single", "multi_channel"],
-        index=0 if channel_mode == "single" else 1,
-        format_func=lambda m: "🎯 Single Niche Focus" if m == "single" else "🔄 Multi-Account Autopilot",
-        help="Single Niche: Daemon & bots focus strictly on the selected account's niche. Multi-Account: Daemon cycles through all configured accounts."
-    )
-    if strat_mode != channel_mode:
-        st.session_state.orchestrator.set_channel_mode(strat_mode)
-        st.toast(f"Strategy updated to {strat_mode}!", icon="🔄")
-        st.rerun()
+    ap_col1, ap_col2 = st.columns([3, 1.2])
+    with ap_col1:
+        st.write("**🎯 Select Active Autopilot Channels (Run Independently):**")
+        cb_cols = st.columns(max(len(all_profiles), 1))
+        for idx, prof in enumerate(all_profiles):
+            pid = prof["id"]
+            is_enabled = prof.get("enabled_for_autopilot", False)
+            with cb_cols[idx % len(cb_cols)]:
+                niche_tag = prof.get("focus_niche", "all").upper()
+                chk = st.checkbox(
+                    f"**{prof['name']}**\n\n`[{niche_tag}]`",
+                    value=is_enabled,
+                    key=f"chk_ap_{pid}",
+                    help=f"If checked, autopilot will independently find deals and post to {prof['name']}'s FB & Instagram"
+                )
+                if chk != is_enabled:
+                    st.session_state.orchestrator.set_profile_autopilot_enabled(pid, chk)
+                    st.rerun()
 
-with chan_c3:
-    st.markdown("<br>", unsafe_allow_html=True)
-    niche_disp = active_prof.get("focus_niche", "all").upper()
-    st.markdown(f"**Target Niche:** <span style='color:#38bdf8; font-weight:700;'>{niche_disp}</span>", unsafe_allow_html=True)
+    with ap_col2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if daemon.is_running:
+            if st.button("⏸️ PAUSE AUTOPILOT", use_container_width=True, key="btn_stop_ap"):
+                daemon.stop_background_loop()
+                st.rerun()
+        else:
+            if st.button("🚀 START 24/7 AUTOPILOT", use_container_width=True, key="btn_start_ap"):
+                daemon.start_background_loop()
+                st.rerun()
+
+        # Immediate single-cycle test button
+        if st.button("⚡ Run Cycle Now (All Selected)", use_container_width=True, key="btn_run_cycle_now"):
+            with st.spinner("Running independent cycles for selected channels..."):
+                cycle_results = daemon.run_one_autonomous_cycle()
+                st.session_state["last_cycle_results"] = cycle_results
+                st.toast("Autonomous cycle completed successfully!", icon="✅")
+                st.rerun()
+
+    # Dynamic Timing & Anti-Bot Protection Banner
+    status_bg = "#064e3b" if daemon.is_running else "#1e1b4b"
+    status_border = "#059669" if daemon.is_running else "#4338ca"
+    status_title = "🟢 24/7 DYNAMIC AUTOPILOT RUNNING" if daemon.is_running else "⏸️ DYNAMIC AUTOPILOT STANDBY"
+    enabled_names = [p["name"] for p in st.session_state.orchestrator.get_enabled_autopilot_profiles()]
+    enabled_str = ", ".join(enabled_names) if enabled_names else "None selected"
+
+    last_str = daemon.last_run_time.strftime("%I:%M %p") if daemon.last_run_time else "None yet"
+    next_str = daemon.next_run_time.strftime("%I:%M %p") if daemon.next_run_time else "Calculated dynamically on launch"
+
+    st.markdown(f"""
+    <div style="background:{status_bg}; border:1px solid {status_border}; border-radius:10px; padding:12px; margin-top:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:#ffffff; font-size:1.0rem;">{status_title}</strong>
+            <span style="color:#a7f3d0; font-size:0.85rem; background:#047857; padding:3px 8px; border-radius:6px;">🛡️ Anti-Bot Safety Active</span>
+        </div>
+        <div style="color:#e2e8f0; font-size:0.9rem; margin-top:6px;">
+            • <b>Active Independent Channels:</b> {enabled_str}<br>
+            • <b>Dynamic Timing:</b> No fixed schedule (no 12:30 or static clock). Intervals randomize between 90m to 210m with human jitter.<br>
+            • <b>Humanoid Copy:</b> 100% clean conversational copy with ZERO emojis and ZERO special characters.<br>
+            • <b>Organic Growth:</b> Finds new people daily, likes recent posts, leaves genuine comments, and invites high-intent users.<br>
+            • <b>Execution:</b> Cycle #{daemon.cycle_count} • Last run: {last_str} • Next dynamic window: {next_str}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if "last_cycle_results" in st.session_state and st.session_state["last_cycle_results"]:
+        l_res = st.session_state["last_cycle_results"]
+        with st.expander("📋 Last Autonomous Cycle Execution Report", expanded=True):
+            st.write(f"**Channels Processed:** {l_res.get('channels_processed', 0)}")
+            for d in l_res.get("details", []):
+                st.success(f"✓ **[{d['channel']}]** ({d['niche'].upper()}): Scouted '{d['product']}', published Post #{d['post_id']} to FB/Instagram, and executed {d['growth_actions']} organic growth actions.")
 
 st.divider()
+
 
 # ==============================================================================
 # MAIN TABS
@@ -488,10 +485,10 @@ with tab_chat:
 # TAB 3: Common Settings & Multi-Channel Profiles
 # ------------------------------------------------------------------------------
 with tab_channels:
-    st.subheader("⚙️ Channel Profiles & Common Settings")
+    st.subheader("⚙️ Channel Profiles, Dynamic Scheduling & Global Settings")
     st.markdown("""
-    Configure your specific social media accounts (e.g. Account 1 for **Ladies Dresses**, Account 2 for **Electronics**, Account 3 for **General Deals**).
-    You can set the bots to focus strictly on one niche or run a multi-channel autopilot that rotates through all your accounts automatically.
+    Configure your specific social media accounts (e.g. Account 1 for **Ladies Dresses**, Account 2 for **Electronics**, or **any custom niche**).
+    Each account runs 100% independently on Autopilot: Ladies fashion posts exclusively to ladies pages, electronics posts to electronics pages.
     """)
 
     # 1. Channel Profiles Cards
@@ -500,11 +497,13 @@ with tab_channels:
     curr_active = st.session_state.orchestrator.get_active_profile()
 
     for prof in all_profiles:
-        is_act = (prof.get("id") == curr_active.get("id"))
+        pid = prof.get("id")
+        is_act = (pid == curr_active.get("id"))
+        is_ap_enabled = prof.get("enabled_for_autopilot", False)
         status_tag = "🟢 ACTIVE FOCUS" if is_act else "⚪ STANDBY"
 
         with st.container():
-            col_p1, col_p2, col_p3 = st.columns([3, 2, 1.2])
+            col_p1, col_p2, col_p3 = st.columns([2.8, 2.2, 1.4])
             with col_p1:
                 st.markdown(f"#### {prof.get('name')}")
                 st.caption(prof.get("description", ""))
@@ -517,38 +516,59 @@ with tab_channels:
                 st.markdown(f"• **Facebook Page ID:** `{fb_id}`")
                 st.markdown(f"• **Telegram Channel:** `{tg_ch}`")
             with col_p3:
-                st.markdown(f"<span style='color:{'#34d399' if is_act else '#94a3b8'}; font-weight:700;'>{status_tag}</span>", unsafe_allow_html=True)
-                st.markdown("<br>", unsafe_allow_html=True)
+                # Direct Autopilot Checkbox on Card
+                ap_chk = st.checkbox(
+                    "Autopilot Enabled",
+                    value=is_ap_enabled,
+                    key=f"card_ap_{pid}",
+                    help="Enable to run independent posting and growth cycles for this account"
+                )
+                if ap_chk != is_ap_enabled:
+                    st.session_state.orchestrator.set_profile_autopilot_enabled(pid, ap_chk)
+                    st.rerun()
+
                 if not is_act:
-                    if st.button("Set as Active", key=f"btn_act_{prof.get('id')}", use_container_width=True):
-                        st.session_state.orchestrator.set_active_profile(prof.get("id"))
+                    if st.button("Set as Active Focus", key=f"btn_act_{pid}", use_container_width=True):
+                        st.session_state.orchestrator.set_active_profile(pid)
                         st.rerun()
+                else:
+                    st.markdown("<span style='color:#34d399; font-weight:700;'>🟢 ACTIVE FOCUS</span>", unsafe_allow_html=True)
             st.divider()
 
-    # 2. Add / Edit Channel Profile Form
-    st.markdown("### ➕ Add New Social Media Account / Niche Channel")
-    with st.expander("Register New Account Profile", expanded=False):
+    # 2. Add / Edit Channel Profile Form (100% Flexible for Any Niche)
+    st.markdown("### ➕ Add New Social Media Account / Any Custom Niche")
+    with st.expander("Register New Account Profile (100% Flexible Niche)", expanded=False):
         with st.form("form_add_channel"):
-            new_c_name = st.text_input("Account Display Name", placeholder="e.g. FeminaStyle India (Ladies Dress)")
-            new_c_niche = st.selectbox(
-                "Niche Focus",
-                ["fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "all"],
-                format_func=lambda x: {
-                    "fashion": "👗 Ladies Fashion & Trending Dresses",
-                    "mobiles": "📱 High-Ticket Mobiles & Tech",
-                    "electronics": "💻 Electronics & Tech Gadgets",
-                    "toys": "🧸 Kids Toys & Games",
-                    "kitchen": "🍳 Home & Kitchen Finds",
-                    "beauty": "💄 Beauty & Personal Care",
-                    "all": "🌟 General / All Loot Deals"
-                }.get(x, x)
-            )
-            new_c_desc = st.text_input("Description", placeholder="e.g. Exclusively for trending sarees, kurtas, and dresses")
-            new_c_ig = st.text_input("Instagram Handle", placeholder="e.g. @feminastyle.in")
+            new_c_name = st.text_input("Account Display Name", placeholder="e.g. DesiGlam India or SmartKitchen Finds")
+            col_n_sel, col_n_cust = st.columns(2)
+            with col_n_sel:
+                new_c_niche_preset = st.selectbox(
+                    "Select Preset Niche",
+                    ["fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "home_decor", "fitness", "custom"],
+                    format_func=lambda x: {
+                        "fashion": "👗 Ladies Fashion & Trending Dresses",
+                        "mobiles": "📱 High-Ticket Mobiles & Tech",
+                        "electronics": "💻 Electronics & Gadgets",
+                        "toys": "🧸 Kids Toys & Games",
+                        "kitchen": "🍳 Kitchen Hacks & Cookware",
+                        "beauty": "💄 Beauty & Personal Care",
+                        "home_decor": "🏠 Home Decor & Organization",
+                        "fitness": "🏋️ Fitness & Workout Gear",
+                        "custom": "✨ Custom Niche (Specify on right)"
+                    }.get(x, x)
+                )
+            with col_n_cust:
+                new_c_niche_custom = st.text_input("Or Custom Niche Name", placeholder="e.g. baby_products, luxury_watches")
+
+            final_niche = new_c_niche_custom.strip().lower() if new_c_niche_custom.strip() else new_c_niche_preset
+
+            new_c_desc = st.text_input("Description", placeholder="e.g. Dedicated exclusively to home organization and smart kitchen finds")
+            new_c_ig = st.text_input("Instagram Handle", placeholder="e.g. @desiglam.in")
             new_c_fb = st.text_input("Facebook Page ID", placeholder="e.g. 1029384756")
-            new_c_tg = st.text_input("Telegram Channel Username (Optional)", placeholder="e.g. @feminastyle_deals")
-            new_c_token = st.text_input("Meta Graph API Access Token (Optional)", type="password", placeholder="Leave blank to use global token or simulation")
+            new_c_tg = st.text_input("Telegram Channel Username (Optional)", placeholder="e.g. @desiglam_deals")
+            new_c_token = st.text_input("Meta Graph API Access Token (Optional)", type="password", placeholder="Leave blank to use default token or simulation")
             new_c_aff = st.text_input("Custom Affiliate Tag Override (Optional)", placeholder="Leave blank to use global tag")
+            new_c_auto = st.checkbox("Enable for Autonomous Autopilot", value=True)
 
             submitted = st.form_submit_button("Save Account Profile")
             if submitted and new_c_name:
@@ -556,16 +576,17 @@ with tab_channels:
                 profile_payload = {
                     "id": p_id,
                     "name": new_c_name,
-                    "focus_niche": new_c_niche,
+                    "focus_niche": final_niche,
                     "description": new_c_desc,
                     "instagram_username": new_c_ig,
                     "facebook_page_id": new_c_fb,
                     "telegram_channel_id": new_c_tg,
                     "meta_access_token": new_c_token,
-                    "custom_affiliate_tag": new_c_aff
+                    "custom_affiliate_tag": new_c_aff,
+                    "enabled_for_autopilot": new_c_auto
                 }
                 st.session_state.orchestrator.save_channel_profile(profile_payload)
-                st.success(f"Channel profile '{new_c_name}' created successfully!")
+                st.success(f"Channel profile '{new_c_name}' created successfully with niche '{final_niche}'!")
                 st.rerun()
 
     # 3. Edit / Delete Existing Account Profile
@@ -579,32 +600,21 @@ with tab_channels:
         if target_p:
             with st.form("form_edit_channel"):
                 ed_name = st.text_input("Account Display Name", value=target_p.get("name", ""))
-                ed_niche = st.selectbox(
-                    "Niche Focus",
-                    ["fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "all"],
-                    index=["fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "all"].index(target_p.get("focus_niche", "all")) if target_p.get("focus_niche") in ["fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "all"] else 0,
-                    format_func=lambda x: {
-                        "fashion": "👗 Ladies Fashion & Trending Dresses",
-                        "mobiles": "📱 High-Ticket Mobiles & Tech",
-                        "electronics": "💻 Electronics & Tech Gadgets",
-                        "toys": "🧸 Kids Toys & Games",
-                        "kitchen": "🍳 Home & Kitchen Finds",
-                        "beauty": "💄 Beauty & Personal Care",
-                        "all": "🌟 General / All Loot Deals"
-                    }.get(x, x)
-                )
+                ed_niche = st.text_input("Niche Focus (e.g. fashion, mobiles, electronics, kitchen)", value=target_p.get("focus_niche", "all"))
                 ed_desc = st.text_input("Description", value=target_p.get("description", ""))
                 ed_ig = st.text_input("Instagram Handle", value=target_p.get("instagram_username", ""))
                 ed_fb = st.text_input("Facebook Page ID", value=target_p.get("facebook_page_id", ""))
                 ed_tg = st.text_input("Telegram Channel", value=target_p.get("telegram_channel_id", ""))
+                ed_ap = st.checkbox("Enabled for Autopilot", value=target_p.get("enabled_for_autopilot", True))
                 ed_sub = st.form_submit_button("Update Account")
                 if ed_sub:
                     target_p["name"] = ed_name
-                    target_p["focus_niche"] = ed_niche
+                    target_p["focus_niche"] = ed_niche.strip().lower()
                     target_p["description"] = ed_desc
                     target_p["instagram_username"] = ed_ig
                     target_p["facebook_page_id"] = ed_fb
                     target_p["telegram_channel_id"] = ed_tg
+                    target_p["enabled_for_autopilot"] = ed_ap
                     st.session_state.orchestrator.save_channel_profile(target_p)
                     st.success("Account updated successfully!")
                     st.rerun()
@@ -617,32 +627,55 @@ with tab_channels:
 
     st.divider()
 
-    # 4. Common Global Affiliate Settings
-    st.markdown("### 🌐 Global Affiliate & Compliance Settings")
+    # 4. Dynamic Timing & Anti-Bot Protection Settings
+    st.markdown("### 🛡️ Dynamic Schedule & Anti-Bot Protection Settings")
+    st.caption("No fixed clock times (12:30/18:30 removed). Posting intervals and micro-delays vary dynamically to prevent bot detection.")
+
     glob_cfg = st.session_state.orchestrator._load_config()
+    dyn_cfg = glob_cfg.get("dynamic_schedule", {})
+    col_d1, col_d2, col_d3 = st.columns(3)
+    with col_d1:
+        s_min_interval = st.number_input("Minimum Interval (Minutes)", min_value=30, max_value=360, value=int(dyn_cfg.get("min_interval_minutes", 90)), step=15)
+    with col_d2:
+        s_max_interval = st.number_input("Maximum Interval (Minutes)", min_value=60, max_value=720, value=int(dyn_cfg.get("max_interval_minutes", 210)), step=15)
+    with col_d3:
+        s_jitter_max = st.number_input("Human Simulation Jitter (Seconds)", min_value=10, max_value=180, value=int(dyn_cfg.get("human_jitter_sec_max", 90)), step=5)
+
+    # 5. Common Global Affiliate Settings
+    st.markdown("### 🌐 Global Affiliate & Compliance Settings")
     with st.form("form_global_settings"):
         col_g1, col_g2 = st.columns(2)
         with col_g1:
             g_tag = st.text_input("Global Amazon Associate Tag", value=glob_cfg.get("affiliate", {}).get("amazon_associate_tag", "autoaffil-21"))
-            g_disc = st.text_input("Default Legal Disclosure Text", value=glob_cfg.get("affiliate", {}).get("default_disclosure_text", "#ad #affiliate #commissionsearned #amazondeals"))
+            g_disc = st.text_input("Default Legal Disclosure Text (Humanoid, Zero Emojis)", value=glob_cfg.get("affiliate", {}).get("default_disclosure_text", "Disclosure: This post contains affiliate links. As an associate I earn from qualifying purchases."))
         with col_g2:
             g_earnkaro = st.text_input("EarnKaro API Key / Publisher ID", value=glob_cfg.get("affiliate", {}).get("earnkaro_api_key", ""), placeholder="Optional for 150+ Indian brands")
             g_target = st.number_input("Daily Revenue Target (INR)", min_value=100.0, max_value=100000.0, value=float(st.session_state.orchestrator.daily_target_inr), step=100.0)
 
-        if st.form_submit_button("Save Global Settings"):
+        if st.form_submit_button("Save All Settings"):
             if "affiliate" not in glob_cfg:
                 glob_cfg["affiliate"] = {}
             glob_cfg["affiliate"]["amazon_associate_tag"] = g_tag
             glob_cfg["affiliate"]["default_disclosure_text"] = g_disc
             glob_cfg["affiliate"]["earnkaro_api_key"] = g_earnkaro
+            if "dynamic_schedule" not in glob_cfg:
+                glob_cfg["dynamic_schedule"] = {}
+            glob_cfg["dynamic_schedule"]["min_interval_minutes"] = int(s_min_interval)
+            glob_cfg["dynamic_schedule"]["max_interval_minutes"] = int(s_max_interval)
+            glob_cfg["dynamic_schedule"]["human_jitter_sec_max"] = int(s_jitter_max)
+            daemon.min_interval_minutes = int(s_min_interval)
+            daemon.max_interval_minutes = int(s_max_interval)
+
             if "app" not in glob_cfg:
                 glob_cfg["app"] = {}
             glob_cfg["app"]["daily_revenue_target_inr"] = float(g_target)
             st.session_state.orchestrator.set_daily_target(float(g_target))
+
             with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "settings.yaml"), "w", encoding="utf-8") as f:
                 yaml.safe_dump(glob_cfg, f, default_flow_style=False)
-            st.success("Global settings saved successfully!")
+            st.success("Settings saved successfully!")
             st.rerun()
+
 
 
 # ------------------------------------------------------------------------------

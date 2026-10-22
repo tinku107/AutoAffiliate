@@ -1,14 +1,39 @@
 """Content Creator Agent ('Creative').
-Generates category-intelligent viral social media content:
-Adapts copy dynamically for High-ticket Mobiles/iPhones, Fashion/Dresses, Toys, Kitchen, and Seasonal Festivals.
+Generates 100% humanoid, natural conversational social media content.
+Strictly adheres to:
+1. No icons or emojis
+2. No decorative special characters (no fancy unicode borders, bullets, or arrows)
+3. Authentic, friendly human curator phrasing
 """
 
 import os
+import re
 import random
 from typing import Dict, Any, Optional, List
 from tools.image_generator import ImageGenerator
 from tools.video_generator import VideoGenerator
 from core.db import save_post, update_product_status, log_agent_action
+
+
+def clean_humanoid_text(text: str) -> str:
+    """
+    Strips all emojis, pictorial symbols, and decorative special characters.
+    Ensures text reads like clean, authentic, humanoid copy.
+    """
+    if not text:
+        return ""
+    # Remove emoji ranges
+    emoji_pattern = re.compile(
+        r"[\U00010000-\U0010ffff]|[\u2600-\u27ff]|[\u2300-\u23ff]|[\u2b50-\u2b55]|[\u200d]|[\ufe0f]",
+        flags=re.UNICODE
+    )
+    cleaned = emoji_pattern.sub("", text)
+    # Remove decorative borders and non-standard bullets
+    cleaned = re.sub(r"[━═─—_]{3,}", "", cleaned)
+    cleaned = cleaned.replace("•", "-").replace("👉", "").replace("⭐", "star").replace("▼", "").replace("▲", "")
+    # Clean up double spaces while keeping linebreaks
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in cleaned.splitlines()]
+    return "\n".join(lines).strip()
 
 
 class CreativeAgent:
@@ -18,11 +43,11 @@ class CreativeAgent:
         self.video_gen = VideoGenerator()
         self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY", "")
 
-    def generate_content_for_product(self, product: Dict[str, Any], post_type: str = "carousel") -> Dict[str, Any]:
-        """Generates viral copy, reel script, hashtags, and promotional graphic for any product dynamically."""
-        log_agent_action(self.name, f"Generating {post_type} content for: {product['title'][:35]}...", "started")
+    def generate_content_for_product(self, product: Dict[str, Any], post_type: str = "carousel", channel_niche: Optional[str] = None) -> Dict[str, Any]:
+        """Generates authentic humanoid copy, reel script, and visual assets without icons or special characters."""
+        log_agent_action(self.name, f"Generating humanoid {post_type} content for: {product['title'][:35]}...", "started")
 
-        # 1. Generate Multi-Image Carousel Slides (Multiple Angles from Amazon/Flipkart)
+        # 1. Generate Multi-Image Carousel Slides
         try:
             media_paths = self.image_gen.generate_carousel_slides(product, max_slides=4)
         except Exception as e:
@@ -36,94 +61,102 @@ class CreativeAgent:
         aff_url = product.get("affiliate_url", "")
         rating = product.get("rating", 4.4)
         reviews = product.get("reviews_count", 1200)
-        category = product.get("category", "General").lower()
+        category = (channel_niche or product.get("category", "General")).lower()
+        platform_name = product.get("platform", "Amazon")
 
-        # Dynamic Category-Specific Hooks & Copy
-        short_title = title.split("(")[0].split("-")[0].strip()[:40]
+        short_title = title.split("(")[0].split("-")[0].strip()[:42]
 
-        if "mobile" in category or "iphone" in title.lower() or deal_price > 20000:
+        # Authentic humanoid copy per niche (Zero icons, zero decorative special characters)
+        if "fashion" in category or "dress" in category or "kurta" in title.lower() or "saree" in title.lower():
             hooks = [
-                f"🚨 Huge Price Drop on {short_title}! Deal alert 👇",
-                f"Thinking of upgrading your phone? Look at this offer on {short_title} 📱",
-                f"Never buy at full retail MRP! Huge discount live on {short_title} 🔥"
+                f"Found a really pretty option while checking deals today: {short_title}.",
+                f"If you are looking for comfortable ethnic wear, take a look at {short_title}.",
+                f"Sharing a nice outfit find that is currently on discount: {short_title}."
             ]
-            feature_1 = "Premium flagship build & outstanding camera performance"
-            feature_2 = "Huge exchange bonus and No Cost EMI options available"
-            niche_tags = "#mobilesindia #smartphonedeals #techindia #appleindia #samsungindia #gadgetindia"
-        elif "fashion" in category or "apparel" in category or "dress" in title.lower():
+            feature_summary = "The fabric feels breathable and the stitching details look very neat in person."
+            use_case = "Works nicely for festive gatherings, family functions, or everyday casual styling."
+            hashtags = "#fashion #indianfashion #ethnicwear #kurtis #sarees #outfitideas #dailydeals"
+
+        elif "mobile" in category or "electronic" in category or "tech" in category or deal_price > 15000:
             hooks = [
-                f"✨ Found the most aesthetic festival fit: {short_title}!",
-                f"Obsessed with the styling on this! And it's currently on sale 👇",
-                f"Outfit recommendation that looks expensive but is flat {discount}% off 😍"
+                f"Spotted a solid price drop on the {short_title}.",
+                f"If you have been waiting for a deal before upgrading your phone, look at {short_title}.",
+                f"Just noticed a notable discount on the {short_title} today."
             ]
-            feature_1 = "Super comfortable premium breathable fabric & modern fit"
-            feature_2 = "Perfect for parties, casual outings, and festive celebrations"
-            niche_tags = "#fashionindia #outfitinspo #ethnicwear #festivelook #indianfashion #budgetfashion"
+            feature_summary = "It offers smooth performance, reliable battery life, and strong camera capabilities."
+            use_case = "Good option if you want reliable daily performance without paying the full retail launch price."
+            hashtags = "#tech #gadgets #smartphones #electronics #techindia #deals #shopping"
+
         elif "toy" in category or "kid" in title.lower():
             hooks = [
-                f"🧸 The viral toy every kid (and adult!) is loving right now!",
-                f"Best gift idea alert: {short_title} has flat {discount}% discount 🎁",
-                f"Keeps them engaged for hours! Check out this top-rated find 👇"
+                f"Found a fun and creative activity toy for kids: {short_title}.",
+                f"If you need a thoughtful birthday gift idea, check out this {short_title}.",
+                f"Sharing a top rated toy that keeps kids meaningfully occupied: {short_title}."
             ]
-            feature_1 = "100% child-safe, non-toxic durable build quality"
-            feature_2 = "Boosts creativity, problem-solving, and hand-eye coordination"
-            niche_tags = "#toysindia #kidsgifts #parentingindia #viraltoys #giftideasindia"
+            feature_summary = "Build quality is sturdy, child safe, and designed to encourage problem solving skills."
+            use_case = "Great choice for weekend playtime, gifting, and motor skill development."
+            hashtags = "#toys #parenting #kidsgiftideas #learningtoys #deals #shopping"
+
         else:
+            # Universal Humanoid Pattern for Any Niche (Home, Kitchen, Beauty, Fitness, etc.)
             hooks = [
-                f"Wait… why did nobody tell me this {short_title} was on sale?! 🤯",
-                f"Stop wasting money on overpriced items! Look at this top find 👇",
-                f"Found the ultimate gamechanger: {short_title} (Flat {discount}% OFF) ⚡"
+                f"Came across a very practical find today: {short_title}.",
+                f"If you like useful daily problem solvers, here is {short_title}.",
+                f"Good discount currently running on the {short_title}."
             ]
-            feature_1 = "Clever problem-solving design with stellar customer ratings"
-            feature_2 = "Durable, high utility, and verified verified buyer satisfaction"
-            niche_tags = "#amazonfinds #amazonfindsindia #budgetdeals #dealsindia #smartshopping"
+            feature_summary = "Very functional design, easy to set up, and well rated by customers who purchased it."
+            use_case = "Simple, durable, and genuinely convenient for regular daily use."
+            hashtags = "#deals #usefulfinds #smartshopping #qualityfinds #onlineshopping"
 
         headline = random.choice(hooks)
 
-        # High-Converting Caption with Comment 'LINK' Funnel
-        mrp_line = f" (MRP ₹{orig_price:,} - Flat {discount}% OFF)" if orig_price > deal_price else ""
+        # 100% Humanoid Caption (Zero emojis, zero special bullets, natural conversational English)
+        mrp_text = f" Original retail price was {orig_price} rupees, bringing the discount to {discount} percent." if orig_price > deal_price else ""
         caption = f"""{headline}
 
-Looking for the best deal online? This {short_title} is currently trending at an unbeatable price!
+Here is a quick overview of this item:
+Current deal price is {deal_price} rupees on {platform_name}.{mrp_text}
+Customer rating is currently {rating} out of 5 based on verified purchaser reviews.
+{feature_summary}
+{use_case}
 
-✨ Key Highlights:
-• ⭐ Rated {rating} / 5.0 with {reviews:,}+ verified orders
-• 🏷️ Deal Price: ₹{deal_price:,}{mrp_line}
-• 📦 {feature_1}
-• 🚚 {feature_2}
+If you would like the direct verified link to check sizes or full specifications, simply reply or comment link below and I will send it straight to your message inbox.
 
-👇 HOW TO GET THE DIRECT LINK:
-1. Comment "LINK" or "DEAL" below, and I'll send you the direct verified discount link straight to your DM!
-2. OR Tap the link in our bio & stories before this offer expires!
+You can also visit the link in my profile bio to see all of today's handpicked recommendations in one place.
 
-⚠️ Price and stock can change anytime on the platform. Grab it now!
+Online prices and stock availability can change frequently on the platform.
 
-#ad #affiliate #dealalert #shoppingindia {niche_tags}
+Disclosure: This post contains affiliate links. As an associate I earn from qualifying purchases.
+
+{hashtags}
 """
 
-        # 15-Second Viral Reel Script
-        reel_script = f"""🎬 [15-SEC VIRAL REEL SCRIPT: {short_title}]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• [0:00 - 0:03] HOOK:
-  Visual: Fast motion dramatic close-up or problem situation.
-  Voiceover: "{headline}"
-  On-Screen Text: "MASSIVE DEAL ALERT ⚡"
+        caption = clean_humanoid_text(caption)
 
-• [0:03 - 0:08] THE HIGHLIGHT:
-  Visual: Demonstrating the product features smoothly.
-  Voiceover: "This {short_title} is currently down to just ₹{deal_price:,}. {feature_1}."
-  On-Screen Text: "NOW ₹{deal_price:,} (FLAT {discount}% OFF)"
+        # 15-Second Clean Humanoid Reel Script (Zero icons, zero special glyphs)
+        reel_script = f"""15-Second Video Script: {short_title}
 
-• [0:08 - 0:12] SOCIAL PROOF:
-  Visual: Showing the star rating and customer unboxing clip.
-  Voiceover: "It has over {reviews:,} 5-star ratings and is selling out super fast!"
-  On-Screen Text: "⭐ {rating}/5.0 RATED ({reviews:,}+ ORDERS)"
+Scene 1 (0 to 3 seconds):
+Visual: Clear view of the {short_title}.
+Voiceover: "{headline}"
+On-screen text: Deal Alert: {short_title}
 
-• [0:12 - 0:15] CALL TO ACTION:
-  Visual: Pointing to comments with arrow graphic.
-  Voiceover: "Comment 'LINK' right now and I will immediately DM you the direct discounted link!"
-  On-Screen Text: "COMMENT 'LINK' FOR DIRECT DM 📩"
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
+Scene 2 (3 to 8 seconds):
+Visual: Highlighting the key product features.
+Voiceover: "The current price is {deal_price} rupees. {feature_summary}."
+On-screen text: Deal Price: {deal_price} rupees
+
+Scene 3 (8 to 12 seconds):
+Visual: Showing customer reviews and close-up detail.
+Voiceover: "It has a {rating} star rating from verified customers."
+On-screen text: Rated {rating} out of 5
+
+Scene 4 (12 to 15 seconds):
+Visual: Prompting viewer to comment.
+Voiceover: "Comment link below and I will message you the direct purchase link right away."
+On-screen text: Comment LINK for Direct Link
+"""
+        reel_script = clean_humanoid_text(reel_script)
 
         # 2. Generate AI Vertical 9:16 Reel Video with Voiceover
         video_path = ""
@@ -136,9 +169,9 @@ Looking for the best deal online? This {short_title} is currently trending at an
             "product_id": product.get("id"),
             "platform": "instagram",
             "post_type": post_type,
-            "headline": headline,
+            "headline": clean_humanoid_text(headline),
             "caption": caption,
-            "hashtags": niche_tags,
+            "hashtags": hashtags,
             "reel_script": reel_script,
             "media_paths": media_paths,
             "video_path": video_path,
@@ -153,5 +186,6 @@ Looking for the best deal online? This {short_title} is currently trending at an
         if product.get("id"):
             update_product_status(product["id"], "content_created")
 
-        log_agent_action(self.name, f"Content created: Post ID #{post_id}", "completed")
+        log_agent_action(self.name, f"Humanoid content created: Post ID #{post_id} (Zero icons/special characters)", "completed")
         return post_data
+

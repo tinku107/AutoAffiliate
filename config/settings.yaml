@@ -1,6 +1,8 @@
-﻿affiliate:
+active_profile_id: fashion
+affiliate:
   amazon_associate_tag: autoaffil-21
-  default_disclosure_text: '#ad #affiliate #commissionsearned #amazondeals'
+  default_disclosure_text: 'Disclosure: This post contains affiliate links. As an
+    associate I earn from qualifying purchases.'
   earnkaro_api_key: ''
 ai:
   gemini_api_key: ''
@@ -9,83 +11,89 @@ app:
   currency: INR
   daily_revenue_target_inr: 5000.0
   name: AutoAffiliate AI
-  version: 1.0.0
-channel_mode: single
-active_profile_id: general
+  version: 1.1.0
+channel_mode: multi_channel
 channel_profiles:
-  - id: general
-    name: "🌟 Mega Loot Deals (General)"
-    focus_niche: all
-    description: "Common focus: Scrapes top trending deals across all categories (Mobiles, Dresses, Gadgets, Toys)"
-    instagram_username: ""
-    facebook_page_id: ""
-    meta_access_token: ""
-    telegram_channel_id: ""
-    telegram_bot_token: ""
-    custom_affiliate_tag: ""
-  - id: fashion
-    name: "👗 StyleDrop India (Ladies Fashion)"
-    focus_niche: fashion
-    description: "Niche focus: Exclusively Ladies Dresses, Kurtas, Sarees, Handbags & Beauty"
-    instagram_username: ""
-    facebook_page_id: ""
-    meta_access_token: ""
-    telegram_channel_id: ""
-    telegram_bot_token: ""
-    custom_affiliate_tag: ""
-  - id: electronics
-    name: "⚡ TechPulse India (Electronics & Tech)"
-    focus_niche: mobiles
-    description: "Niche focus: Exclusively High-Ticket Smartphones, Laptops, Gadgets & Audio"
-    instagram_username: ""
-    facebook_page_id: ""
-    meta_access_token: ""
-    telegram_channel_id: ""
-    telegram_bot_token: ""
-    custom_affiliate_tag: ""
-niches:
-- id: gadgets
-  keywords:
-  - smart gadget
-  - home hack
-  - tech finds
-  - kitchen tool
-  - car accessory
-  max_price: 1499
-  min_discount_pct: 35
-  name: Smart Gadgets & Life Hacks
-- id: kitchen
-  keywords:
-  - kitchen organizer
-  - smart storage
-  - cleaning gadget
-  - room decor
-  max_price: 999
-  min_discount_pct: 40
-  name: Aesthetic Kitchen & Home Decor
-- id: beauty
-  keywords:
-  - skincare
-  - hair styling
-  - grooming
-  - massager
-  max_price: 799
-  min_discount_pct: 45
-  name: Personal Care & Beauty Deals
-posting_schedule:
-  max_posts_per_day: 4
-  peak_slots:
-  - '12:30'
-  - '18:30'
-  - '21:00'
-safety_limits:
-  human_simulation_jitter_sec: 45
-  max_comments_per_hour: 8
-  max_likes_per_hour: 15
-  min_delay_between_actions_sec: 180
-social:
+- custom_affiliate_tag: ''
+  description: 'Niche focus: Exclusively Ladies Dresses, Kurtas, Sarees, Handbags
+    and Beauty'
+  enabled_for_autopilot: true
   facebook_page_id: ''
+  focus_niche: fashion
+  id: fashion
   instagram_username: ''
   meta_access_token: ''
+  name: StyleDrop India (Ladies Fashion)
   telegram_bot_token: ''
   telegram_channel_id: ''
+- custom_affiliate_tag: ''
+  description: 'Niche focus: Exclusively High-Ticket Smartphones, Laptops, Gadgets
+    and Audio'
+  enabled_for_autopilot: true
+  facebook_page_id: ''
+  focus_niche: mobiles
+  id: electronics
+  instagram_username: ''
+  meta_access_token: ''
+  name: TechPulse India (Electronics and Tech)
+  telegram_bot_token: ''
+  telegram_channel_id: ''
+- custom_affiliate_tag: ''
+  description: 'Common focus: Scrapes top trending deals across all categories (Mobiles,
+    Dresses, Gadgets, Toys)'
+  enabled_for_autopilot: false
+  facebook_page_id: ''
+  focus_niche: all
+  id: general
+  instagram_username: ''
+  meta_access_token: ''
+  name: Mega Loot Deals (General)
+  telegram_bot_token: ''
+  telegram_channel_id: ''
+dynamic_schedule:
+  anti_ban_mode: true
+  human_jitter_sec_max: 90
+  human_jitter_sec_min: 25
+  max_interval_minutes: 220
+  min_interval_minutes: 90
+  no_fixed_clock: true
+humanoid_rules:
+  disallow_emojis: true
+  disallow_special_chars: true
+  tone: authentic_conversational
+organic_growth:
+  auto_add_invite_people: true
+  auto_comment_target_posts: true
+  auto_like_target_posts: true
+  auto_repost_community: true
+  max_engagements_per_cycle: 4
+safety_limits:
+  human_simulation_jitter_sec: 45
+  max_comments_per_hour: 6
+  max_likes_per_hour: 12
+  min_delay_between_actions_sec: 120
+supported_platforms:
+- domain: amazon.in
+  name: Amazon India
+  param: tag
+- domain: flipkart.com
+  name: Flipkart
+  param: affid
+- domain: myntra.com
+  name: Myntra
+  param: utm_source
+- domain: nykaa.com
+  name: Nykaa
+  param: utm_source
+- domain: ajio.com
+  name: Ajio
+  param: utm_source
+- domain: meesho.com
+  name: Meesho
+  param: utm_campaign
+- domain: croma.com
+  name: Croma
+  param: utm_source
+- domain: tatacliq.com
+  name: Tata CLiQ
+  param: utm_source

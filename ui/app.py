@@ -803,9 +803,9 @@ if nav_selection == "📊 Executive Dashboard":
                 <span class="status-pill-active">🟢 ONLINE</span>
             </div>
             <div style="font-size:0.83rem; margin-top:8px; line-height:1.5;">
-                • <b>Function:</b> Copy & Media Director<br>
-                • <b>Avatar:</b> Elena Virtual Ambassador<br>
-                • <b>Assets:</b> 4-Slide Carousels + 9:16 Reels<br>
+                • <b>Function:</b> Scraped Deals & Carousel Creator<br>
+                • <b>Media Mode:</b> Pure Scraped Photos (No Avatar/Video)<br>
+                • <b>Assets:</b> Multi-Angle Store Gallery Carousels<br>
                 • <b>Copy Rules:</b> 100% Humanoid (Zero Emojis)
             </div>
         </div>
@@ -1662,7 +1662,20 @@ elif nav_selection == "⚙️ Global Settings & Compliance":
         with c_ret2:
             s_ret_hrs = st.number_input("Media Retention Period (Hours)", min_value=1, max_value=168, value=int(s_clean_cfg.get("retention_hours", 24)), step=6)
 
+        st.markdown("---")
+        st.markdown("#### 4. 🎨 Media & Creative Pipeline Toggles")
+        feat_cfg = glob_cfg.get("features", {})
+        c_feat1, c_feat2 = st.columns(2)
+        with c_feat1:
+            s_feat_av = st.checkbox("Enable Brand Avatar Mapping (Elena's World)", value=bool(feat_cfg.get("enable_avatar_mapping", False)), help="When disabled (current phase), carousels showcase 100% authentic scraped product photos from the store.")
+        with c_feat2:
+            s_feat_vid = st.checkbox("Enable 9:16 AI Reel Video Generation", value=bool(feat_cfg.get("enable_video_generation", False)), help="When disabled (current phase), skips AI video rendering for fast, lightweight image & carousel publishing.")
+
         if st.form_submit_button("Save All Settings"):
+            if "features" not in glob_cfg:
+                glob_cfg["features"] = {}
+            glob_cfg["features"]["enable_avatar_mapping"] = bool(s_feat_av)
+            glob_cfg["features"]["enable_video_generation"] = bool(s_feat_vid)
             if "affiliate" not in glob_cfg:
                 glob_cfg["affiliate"] = {}
             glob_cfg["affiliate"]["amazon_associate_tag"] = g_tag

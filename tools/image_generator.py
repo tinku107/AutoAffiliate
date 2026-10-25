@@ -98,13 +98,13 @@ class ImageGenerator:
             t = t[:42].rsplit(" ", 1)[0]
         return t
 
-    def generate_carousel_slides(self, product: Dict[str, Any], max_slides: int = 8, channel_profile: Optional[Dict[str, Any]] = None) -> List[str]:
+    def generate_carousel_slides(self, product: Dict[str, Any], max_slides: int = 8, channel_profile: Optional[Dict[str, Any]] = None, enable_avatar: bool = False) -> List[str]:
         """
-        Creates a complete multi-image Instagram/Facebook carousel:
-        - Slide 1: Elena Avatar Hero Slide (Avatar showcasing dress/ornament + Scraped Product Card)
-        - Slides 2 to N: All real scraped store gallery photos from Amazon/Flipkart/Myntra/Nykaa
+        Creates a multi-image Instagram/Facebook carousel:
+        - When enable_avatar=False (Default): Uses 100% authentic scraped product images from the store.
+        - When enable_avatar=True: Embeds Elena avatar watermark seal.
         """
-        avatar_path = self._resolve_avatar_path(channel_profile)
+        avatar_path = self._resolve_avatar_path(channel_profile) if enable_avatar else None
         image_urls = product.get("image_urls", [])
         if not image_urls and product.get("image_url"):
             image_urls = [product.get("image_url")]
@@ -329,21 +329,24 @@ class ImageGenerator:
         pid = product.get("product_id", "prod")
 
         # Angle classification based on slide index
-        if slide_idx == 2:
+        if slide_idx == 1:
+            angle_tag = "AUTHENTIC PRODUCT"
+            sub_head = f"PHOTO 1 OF {total_slides}: AUTHENTIC SCRAPED STORE PHOTO"
+        elif slide_idx == 2:
             angle_tag = "FRONT & FULL DRAPE"
-            sub_head = f"PHOTO 1 OF {total_slides - 1}: FRONT & FULL DRAPE VIEW"
+            sub_head = f"PHOTO 2 OF {total_slides}: FRONT & FULL DRAPE VIEW"
         elif slide_idx == 3:
             angle_tag = "FABRIC WEAVE & DETAIL"
-            sub_head = f"PHOTO 2 OF {total_slides - 1}: FABRIC & MATERIAL CLOSE-UP"
+            sub_head = f"PHOTO 3 OF {total_slides}: FABRIC & MATERIAL CLOSE-UP"
         elif slide_idx == 4:
             angle_tag = "BORDER & WORK DETAIL"
-            sub_head = f"PHOTO 3 OF {total_slides - 1}: BORDER, PALLU & FINISH DETAIL"
+            sub_head = f"PHOTO 4 OF {total_slides}: BORDER, PALLU & FINISH DETAIL"
         elif slide_idx == 5:
             angle_tag = "LIFESTYLE & WEAR"
-            sub_head = f"PHOTO 4 OF {total_slides - 1}: LIFESTYLE & WEAR LOOK"
+            sub_head = f"PHOTO 5 OF {total_slides}: LIFESTYLE & WEAR LOOK"
         else:
             angle_tag = "ADDITIONAL ANGLE"
-            sub_head = f"PHOTO {slide_idx - 1} OF {total_slides - 1}: REAL STORE PERSPECTIVE"
+            sub_head = f"PHOTO {slide_idx} OF {total_slides}: REAL STORE PERSPECTIVE"
 
         # 1. Header Bar
         header_h = 100

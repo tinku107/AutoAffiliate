@@ -37,6 +37,18 @@ def clean_humanoid_text(text: str) -> str:
 
 
 class CreativeAgent:
+    def _load_features(self) -> Dict[str, Any]:
+        cfg_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "settings.yaml")
+        if os.path.exists(cfg_path):
+            try:
+                import yaml
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+                    return cfg.get("features", {})
+            except Exception:
+                pass
+        return {}
+
     def __init__(self, gemini_api_key: Optional[str] = None):
         self.name = "Creative (Content Studio)"
         self.image_gen = ImageGenerator()
@@ -48,9 +60,18 @@ class CreativeAgent:
         """Generates authentic humanoid copy, reel script, and visual assets without icons or special characters."""
         log_agent_action(self.name, f"Generating humanoid {post_type} content for: {product['title'][:35]}...", "started")
 
-        # 1. Generate Multi-Image Carousel Slides
+        feat = self._load_features()
+        enable_avatar = feat.get("enable_avatar_mapping", False)
+        enable_video = feat.get("enable_video_generation", False)
+
+        # 1. Generate Multi-Image Carousel Slides (Clean Scraped Images)
         try:
-            media_paths = self.image_gen.generate_carousel_slides(product, max_slides=8, channel_profile=channel_profile)
+            media_paths = self.image_gen.generate_carousel_slides(
+                product,
+                max_slides=8,
+                channel_profile=channel_profile if enable_avatar else None,
+                enable_avatar=enable_avatar
+            )
         except Exception as e:
             log_agent_action(self.name, f"Image carousel note: {e}", "warning")
             media_paths = product.get("image_urls", [product.get("image_url", "")])
@@ -215,12 +236,13 @@ On-screen text: Comment LINK for Direct Order Link
 """
         reel_script = clean_humanoid_text(reel_script)
 
-        # 2. Generate AI Vertical 9:16 Reel Video with Voiceover
+        # 2. Generate AI Vertical 9:16 Reel Video with Voiceover (Only if enabled)
         video_path = ""
-        try:
-            video_path = self.video_gen.generate_reel_video(product)
-        except Exception as e:
-            log_agent_action(self.name, f"Video generation note: {e}", "warning")
+        if enable_video:
+            try:
+                video_path = self.video_gen.generate_reel_video(product)
+            except Exception as e:
+                log_agent_action(self.name, f"Video generation note: {e}", "warning")
 
         post_data = {
             "product_id": product.get("id"),

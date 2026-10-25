@@ -174,3 +174,6 @@ supported_platforms:
 - domain: tatacliq.com
   name: Tata CLiQ
   param: utm_source
+features:
+  enable_avatar_mapping: false
+  enable_video_generation: false

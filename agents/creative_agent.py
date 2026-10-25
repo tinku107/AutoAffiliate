@@ -49,7 +49,7 @@ class CreativeAgent:
 
         # 1. Generate Multi-Image Carousel Slides
         try:
-            media_paths = self.image_gen.generate_carousel_slides(product, max_slides=4)
+            media_paths = self.image_gen.generate_carousel_slides(product, max_slides=8, channel_profile=channel_profile)
         except Exception as e:
             log_agent_action(self.name, f"Image carousel note: {e}", "warning")
             media_paths = product.get("image_urls", [product.get("image_url", "")])

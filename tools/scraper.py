@@ -77,14 +77,29 @@ class ProductScraper:
                 pass
         return 0.0
 
-    def extract_gallery_images(self, product_url: str, primary_img_url: str = "", max_images: int = 5) -> List[str]:
+    def extract_gallery_images(self, product_url: str, primary_img_url: str = "", max_images: int = 8) -> List[str]:
         """
-        Extracts multiple high-resolution gallery product pictures from Amazon India or Flipkart.
-        Grabs alternate angles, lifestyle photos, detail shots.
+        Extracts multiple high-resolution gallery product pictures from Amazon India, Flipkart, Myntra, Nykaa.
+        Grabs alternate angles, lifestyle photos, detail shots, fabric weave, and packaging.
         """
         images = []
+        seen_ids = set()
+
+        def _add_img(u: str, im_id: str = ""):
+            if not u or u in images:
+                return
+            if im_id and im_id in seen_ids:
+                return
+            if any(skip in u.lower() for skip in ["sprite", "icon", "pixel", "logo", "button", "play-icon", "grey-pixel", "loading", "transparent"]):
+                return
+            if im_id:
+                seen_ids.add(im_id)
+            images.append(u)
+
         if primary_img_url:
-            images.append(primary_img_url)
+            prim_match = re.search(r"/images/I/([A-Za-z0-9%_-]+)", primary_img_url)
+            prim_id = prim_match.group(1).split(".")[0] if prim_match else ""
+            _add_img(primary_img_url, prim_id)
 
         if not product_url:
             return images
@@ -95,27 +110,55 @@ class ProductScraper:
             if resp.status_code == 200:
                 html = resp.text
 
-                # Amazon Media Pattern
+                # 1. Amazon Media Pattern
                 if "amazon" in product_url.lower():
-                    img_matches = re.findall(r"https://[a-zA-Z0-9.\-]+/images/I/([A-Za-z0-9%_-]+)\.(?:jpg|png|webp)", html.replace(r"\/", "/"))
-                    for im_id in img_matches:
-                        clean_id = im_id.split(".")[0]
-                        if len(clean_id) >= 8 and not any(skip in clean_id.lower() for skip in ["sprite", "icon", "pixel", "logo", "button"]):
-                            full_url = f"https://m.media-amazon.com/images/I/{clean_id}._AC_SL1200_.jpg"
-                            if full_url not in images:
-                                images.append(full_url)
+                    # Inline JSON hiRes / large image arrays
+                    hires_matches = re.findall(r'"(?:hiRes|large)"\s*:\s*"(https://[^"]+)"', html)
+                    for hr_url in hires_matches:
+                        clean_hr = hr_url.replace(r"\/", "/")
+                        m = re.search(r"/images/I/([A-Za-z0-9%_-]+)", clean_hr)
+                        im_id = m.group(1).split(".")[0] if m else ""
+                        _add_img(clean_hr, im_id)
+                        if len(images) >= max_images:
+                            break
+
+                    if len(images) < max_images:
+                        img_matches = re.findall(r"https://[a-zA-Z0-9.\-]+/images/I/([A-Za-z0-9%_-]+)\.(?:jpg|png|webp)", html.replace(r"\/", "/"))
+                        for im_id in img_matches:
+                            clean_id = im_id.split(".")[0]
+                            if len(clean_id) >= 8:
+                                full_url = f"https://m.media-amazon.com/images/I/{clean_id}._AC_SL1200_.jpg"
+                                _add_img(full_url, clean_id)
                                 if len(images) >= max_images:
                                     break
 
-                # Flipkart Media Pattern
+                # 2. Flipkart Media Pattern
                 elif "flipkart" in product_url.lower():
                     fk_imgs = re.findall(r"https://rukminim\d\.flixcart\.com/image/[a-zA-Z0-9/_-]+\.(?:jpeg|jpg|png)", html)
                     for img in fk_imgs:
                         hr = re.sub(r"/image/\d+/\d+/", "/image/832/832/", img)
-                        if hr not in images:
-                            images.append(hr)
-                            if len(images) >= max_images:
-                                break
+                        hr_clean = hr.split("?")[0]
+                        m = re.search(r"original-([a-zA-Z0-9]+)", hr_clean)
+                        fk_id = m.group(1) if m else hr_clean[-20:]
+                        _add_img(hr_clean, fk_id)
+                        if len(images) >= max_images:
+                            break
+
+                # 3. Myntra & Nykaa Pattern
+                elif "myntra" in product_url.lower():
+                    myntra_imgs = re.findall(r"https://assets\.myntassets\.com/[a-zA-Z0-9/_,.-]+\.(?:jpg|jpeg|png)", html)
+                    for m_img in myntra_imgs:
+                        _add_img(m_img)
+                        if len(images) >= max_images:
+                            break
+
+                elif "nykaa" in product_url.lower():
+                    nykaa_imgs = re.findall(r"https://images-static\.nykaa\.com/[a-zA-Z0-9/_,.-]+\.(?:jpg|jpeg|png)", html)
+                    for n_img in nykaa_imgs:
+                        _add_img(n_img)
+                        if len(images) >= max_images:
+                            break
+
         except Exception as e:
             print(f"Gallery extraction error: {e}")
 
@@ -206,7 +249,7 @@ class ProductScraper:
 
                 comm_rate = 0.02 if (price > 25000 or "mobile" in category) else (0.09 if any(k in category for k in ["fashion", "toy"]) else 0.06)
 
-                gallery_images = self.extract_gallery_images(clean_link, primary_img_url=img_url, max_images=4)
+                gallery_images = self.extract_gallery_images(clean_link, primary_img_url=img_url, max_images=8)
 
                 scraped_items.append({
                     "product_id": asin,
@@ -308,7 +351,7 @@ class ProductScraper:
                         cat_name = query.title()
                         comm_rate = 0.02 if price > 20000 else 0.08
 
-                    gallery_images = self.extract_gallery_images(link, primary_img_url=img_url, max_images=4)
+                    gallery_images = self.extract_gallery_images(link, primary_img_url=img_url, max_images=8)
 
                     scraped_items.append({
                         "product_id": asin,
@@ -425,7 +468,7 @@ class ProductScraper:
                     cat_name = query.title()
                     comm_rate = 0.02 if deal_price > 20000 else 0.08
 
-                gallery_images = self.extract_gallery_images(link, primary_img_url=img_url, max_images=4)
+                gallery_images = self.extract_gallery_images(link, primary_img_url=img_url, max_images=8)
 
                 if deal_price > 0:
                     results.append({
@@ -587,7 +630,7 @@ class ProductScraper:
                     pid = f"{platform.upper()}_{abs(hash(url)) % 1000000}"
 
                 discount_pct = round(((mrp - price) / mrp) * 100, 1) if mrp > price and price > 0 else 0.0
-                gallery_images = self.extract_gallery_images(url, primary_img_url=img_url, max_images=4)
+                gallery_images = self.extract_gallery_images(url, primary_img_url=img_url, max_images=8)
                 if not gallery_images and img_url:
                     gallery_images = [img_url]
 

@@ -1114,11 +1114,10 @@ elif nav_selection == "🌐 E-Commerce Platforms":
                         st.success(f"✓ Extracted from {item.get('platform')}: {item.get('title')[:45]}!")
                         st.write(f"• **Deal Price:** ₹{int(item.get('deal_price', 0)):,} (MRP: ₹{int(item.get('original_price', 0)):,})")
                         aff_link = item.get('affiliate_url', '')
-                        if 'tinyurl.com' in aff_link or item.get('is_cloaked'):
-                            st.write(f"• **Customer Deal Link (Cloaked):** `{aff_link}` 🛡️ *(EarnKaro hidden from followers)*")
-                            if item.get("raw_affiliate_url"):
-                                with st.expander("🔍 View Underlying EarnKaro Tracking URL (Publisher Verification)"):
-                                    st.code(item['raw_affiliate_url'])
+                        if 'amzn.to' in aff_link:
+                            st.write(f"• **Amazon Official Referral Link (`amzn.to`):** `{aff_link}`")
+                        elif 'amazon.' in aff_link:
+                            st.write(f"• **Amazon Official Associate Link:** `{aff_link}`")
                         else:
                             st.write(f"• **Auto-Tagged Link:** `{aff_link}`")
                         if item.get("image_url"):
@@ -1347,13 +1346,12 @@ elif nav_selection == "⚡ Live Product Sandbox":
 
         with r_info_col:
             aff_link = p.get('affiliate_url', '')
-            if 'tinyurl.com' in aff_link or p.get('is_cloaked') or 'earnkaro.com' in p.get('raw_affiliate_url', ''):
-                st.markdown(f"🔗 **Customer Deal Link (Cloaked):** `{aff_link}` 🛡️ *(EarnKaro hidden from followers)*")
-                if p.get("raw_affiliate_url"):
-                    with st.expander("🔍 View Underlying EarnKaro Tracking URL (Publisher Verification)"):
-                        st.code(p['raw_affiliate_url'])
+            if 'amzn.to' in aff_link:
+                st.markdown(f"🔗 **Amazon Official Referral Link (`amzn.to`):** `{aff_link}`")
+            elif 'amazon.' in aff_link:
+                st.markdown(f"🔗 **Amazon Official Associate Link:** `{aff_link}`")
             else:
-                st.markdown(f"🔗 **Live Affiliate URL:** `{aff_link}`")
+                st.markdown(f"🔗 **Customer Deal Link:** `{aff_link}`")
             st.markdown(f"**Headline Hook:** *{pst['headline']}*")
 
             with st.expander("📝 View Humanoid Caption (Zero Icons/Emojis)", expanded=True):
@@ -1851,8 +1849,8 @@ elif nav_selection == "📖 System Wiki & Operations Manual":
         #### Privacy & Cloaking Architecture:
         1. **Strict Follower Privacy**:
            - Followers, commenters, and social algorithms **NEVER see `earnkaro.com` strings**.
-        2. **Instant TinyURL Engine (`tools/affiliate_tagger.py`)**:
-           - Automatically shortens deep tracking links into clean, high-converting short URLs (`https://tinyurl.com/...`).
+        2. **Official Direct & Short Referral Engine (`tools/affiliate_tagger.py`)**:
+           - Uses official Amazon short links (`https://amzn.to/...`) and clean direct Associate URLs (`https://www.amazon.in/dp/ASIN?tag=tinkukrishnan-21`). Zero 3rd-party shortener clutter.
            - Includes memory caching (`_url_cache`) to prevent redundant network requests.
         3. **Two-Tier Link Architecture**:
            - **Public Deal Link (Follower-Facing)**: Clean cloaked link sent in captions, direct messages, and Telegram broadcasts.

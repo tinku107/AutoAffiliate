@@ -1,6 +1,7 @@
 """Dynamic Multi-Platform Affiliate URL Manager.
 Allows adding ANY e-commerce website (Amazon, Flipkart, Myntra, Ajio, Nykaa, Meesho, Croma, etc.)
 without code modifications. Supports direct query params and aggregator deep links.
+Zero TinyURL dependencies: uses official Amazon links (amzn.to / amazon.in?tag=...) directly.
 """
 
 import re
@@ -65,28 +66,32 @@ class AffiliateTagger:
             }
         }
 
+        # Load any user-defined custom platforms from settings.yaml
         self._load_custom_platforms()
 
     def _load_custom_platforms(self):
-        """Loads custom user-added platforms from settings.yaml."""
-        if os.path.exists(CONFIG_PATH):
-            try:
+        """Loads custom platform definitions added via Admin UI from settings.yaml."""
+        try:
+            if os.path.exists(CONFIG_PATH):
                 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f) or {}
-                    custom = cfg.get("custom_affiliate_platforms", {})
-                    for k, v in custom.items():
-                        self.platforms[k.lower()] = v
-            except Exception:
-                pass
+                custom = cfg.get("custom_affiliate_platforms", {})
+                for key, data in custom.items():
+                    if isinstance(data, dict) and "domains" in data and "param" in data:
+                        self.platforms[key] = data
+        except Exception as e:
+            print(f"Note: Could not load custom platforms from config: {e}")
 
-    def add_platform(self, key: str, name: str, domain: str, param: str, affiliate_id: str):
-        """Dynamically registers any new e-commerce website at runtime."""
-        clean_key = key.lower().strip()
+    def add_platform(self, name: str, domain: str, param: str, tracking_id: str):
+        """Dynamically registers a new e-commerce store with its affiliate query parameter."""
+        clean_key = name.lower().replace(" ", "_")
+        clean_domain = domain.lower().replace("https://", "").replace("http://", "").split("/")[0]
+
         data = {
             "name": name,
-            "domains": [domain.lower().replace("https://", "").replace("http://", "").strip("/")],
+            "domains": [clean_domain],
             "param": param.strip(),
-            "id": affiliate_id.strip(),
+            "id": tracking_id.strip(),
             "clean_params": []
         }
         self.platforms[clean_key] = data
@@ -109,33 +114,7 @@ class AffiliateTagger:
             print(f"Could not persist custom platform: {e}")
 
     def cloak_url(self, raw_affiliate_url: str) -> str:
-        """
-        Cloaks/shortens affiliate links (specifically EarnKaro and deep tracking links)
-        so followers and social algorithms NEVER see raw 'earnkaro.com' tracking links.
-        Uses TinyURL's free instant API with memory caching.
-        """
-        if not raw_affiliate_url:
-            return ""
-
-        if raw_affiliate_url in self._url_cache:
-            return self._url_cache[raw_affiliate_url]
-
-        try:
-            api_url = f"https://tinyurl.com/api-create.php?url={urllib.parse.quote(raw_affiliate_url)}"
-            resp = requests.get(api_url, timeout=5)
-            if resp.status_code == 200 and resp.text.startswith("http"):
-                shortened = resp.text.strip()
-                self._url_cache[raw_affiliate_url] = shortened
-                return shortened
-        except Exception as e:
-            print(f"URL cloaking fallback note: {e}")
-
-        # If offline or TinyURL unreachable, never expose earnkaro.com directly!
-        if "earnkaro.com" in raw_affiliate_url:
-            m = re.search(r"link=([^&]+)", raw_affiliate_url)
-            clean_dest = urllib.parse.unquote(m.group(1)) if m else raw_affiliate_url
-            return clean_dest
-
+        """Clean direct URL handler (TinyURL removed as requested)."""
         return raw_affiliate_url
 
     def convert_url(self, raw_url: str, platform: Optional[str] = None) -> str:
@@ -143,22 +122,25 @@ class AffiliateTagger:
         if not raw_url:
             return ""
 
-        # Special Amazon ASIN extraction
-        if "amazon." in raw_url:
+        raw_lower = raw_url.lower()
+
+        # 1. Official Amazon short link (amzn.to) - preserve exactly as generated!
+        if "amzn.to" in raw_lower:
+            return raw_url
+
+        # 2. Amazon regular canonical product URL
+        if "amazon." in raw_lower:
             asin_match = re.search(r"/(?:dp|gp/product|d)/([A-Z0-9]{10})", raw_url)
             if asin_match:
                 return f"https://www.amazon.in/dp/{asin_match.group(1)}?tag={self.amazon_tag}"
 
-        # If EarnKaro aggregator is active and not Amazon
-        if self.earnkaro_id and not "amazon." in raw_url:
+        # 3. If EarnKaro aggregator is active and not Amazon
+        if self.earnkaro_id and not ("amazon." in raw_lower or "amzn.to" in raw_lower):
             clean_url = raw_url.split("?")[0]
             encoded = urllib.parse.quote(clean_url)
-            raw_ek = f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
-            # STRICT RULE: NEVER show earnkaro.com directly to followers!
-            # Automatically cloaks into clean short link
-            return self.cloak_url(raw_ek)
+            return f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
 
-        # Match against registered platforms
+        # 4. Match against registered platforms
         parsed = urllib.parse.urlparse(raw_url)
         netloc = parsed.netloc.lower()
 
@@ -186,27 +168,49 @@ class AffiliateTagger:
 
     def convert_url_details(self, raw_url: str, platform: Optional[str] = None) -> Dict[str, Any]:
         """
-        Returns both the public clean cloaked URL (shown to followers)
-        and the underlying raw tracking URL (for publisher verification).
+        Returns the official public referral URL (shown to followers)
+        and tracking metadata. Zero TinyURL dependency.
         """
         if not raw_url:
             return {"public_url": "", "raw_tracking_url": "", "is_cloaked": False}
 
-        if "amazon." in raw_url:
+        raw_lower = raw_url.lower()
+
+        # 1. Official Amazon short link (amzn.to)
+        if "amzn.to" in raw_lower:
+            return {
+                "public_url": raw_url,
+                "raw_tracking_url": raw_url,
+                "is_cloaked": False,
+                "link_type": "amzn_to"
+            }
+
+        # 2. Canonical Amazon Associate URL
+        if "amazon." in raw_lower:
             asin_match = re.search(r"/(?:dp|gp/product|d)/([A-Z0-9]{10})", raw_url)
             if asin_match:
                 amz_url = f"https://www.amazon.in/dp/{asin_match.group(1)}?tag={self.amazon_tag}"
-                return {"public_url": amz_url, "raw_tracking_url": amz_url, "is_cloaked": False}
+                return {
+                    "public_url": amz_url,
+                    "raw_tracking_url": amz_url,
+                    "is_cloaked": False,
+                    "link_type": "amazon_canonical"
+                }
 
-        if self.earnkaro_id and not "amazon." in raw_url:
+        # 3. EarnKaro aggregator
+        if self.earnkaro_id and not ("amazon." in raw_lower or "amzn.to" in raw_lower):
             clean_url = raw_url.split("?")[0]
             encoded = urllib.parse.quote(clean_url)
             raw_ek = f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
-            cloaked = self.cloak_url(raw_ek)
-            return {"public_url": cloaked, "raw_tracking_url": raw_ek, "is_cloaked": True}
+            return {
+                "public_url": raw_ek,
+                "raw_tracking_url": raw_ek,
+                "is_cloaked": False,
+                "link_type": "earnkaro"
+            }
 
         pub = self.convert_url(raw_url, platform)
-        return {"public_url": pub, "raw_tracking_url": pub, "is_cloaked": False}
+        return {"public_url": pub, "raw_tracking_url": pub, "is_cloaked": False, "link_type": "direct"}
 
     def get_disclosure_text(self) -> str:
         return "#ad #affiliate #commissionsearned #dealsindia"

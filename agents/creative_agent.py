@@ -152,10 +152,15 @@ class CreativeAgent:
         headline = random.choice(hooks)
 
         # 100% Humanoid Caption with Explicit Real Price (MRP) & Offer Price
-        price_breakdown = f"""Price Details:
+        if deal_price > 0 and orig_price > deal_price:
+            price_breakdown = f"""Price Details:
 Real Price (MRP): Rs {orig_price}
 Offer Deal Price: Rs {deal_price}
-You Save: Flat {discount} percent off""" if orig_price > deal_price else f"Offer Price: Rs {deal_price}"
+You Save: Flat {discount} percent off"""
+        elif deal_price > 0:
+            price_breakdown = f"Offer Deal Price: Rs {deal_price}"
+        else:
+            price_breakdown = "Special Promotional Offer: Check current live discount at the link."
 
         prof_name = (channel_profile or {}).get("name", "").lower() if isinstance(channel_profile, dict) else ""
         brand_signoff = "Curated by Elena for Elena's World" if ("elena" in category or "saree" in category or "elena" in prof_name) else "Curated Deals Team"

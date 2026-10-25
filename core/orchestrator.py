@@ -373,38 +373,57 @@ class AgentOrchestrator:
         """
         log_agent_action("Orchestrator", f"Testing next product [{platform.upper()}] in: {query or category}", "started")
 
-        # Fetch a pool of live products so we can select the NEXT fresh product
-        pool_size = 15
-        products = self.scout.scout_trending_products(
-            category=category,
-            query=query,
-            platform=platform,
-            count=pool_size,
-            target_profit=self.daily_target_inr
-        )
-        if not products:
-            return {"success": False, "error": f"No live products retrieved from {platform.upper()} for '{query or category}'"}
+        # 1. Direct URL Testing (Supports amzn.to/xxx or any direct product link)
+        target_url = kwargs.get("custom_url") or kwargs.get("url") or (query if query and query.strip().startswith("http") else None)
+        if target_url:
+            clean_url = target_url.strip()
+            target_prod = self.scout.scraper.fetch_product_by_url(clean_url)
+            if not target_prod:
+                return {"success": False, "error": f"Could not scrape product details from URL: {clean_url}"}
 
-        # Find the next product that has not been tested and not discarded
-        valid_products = [p for p in products if p.get("product_id") not in self.discarded_product_ids]
-        target_prod = None
-        for p in (valid_products or products):
-            pid = p.get("product_id")
-            if pid and pid not in self.tested_product_ids and pid not in self.discarded_product_ids:
-                target_prod = p
-                self.tested_product_ids.add(pid)
-                break
+            url_meta = self.scout.tagger.convert_url_details(target_prod.get("source_url", clean_url), platform=target_prod.get("platform", "Amazon"))
+            target_prod["affiliate_url"] = url_meta.get("public_url")
+            target_prod["raw_affiliate_url"] = url_meta.get("raw_tracking_url")
+            target_prod["is_cloaked"] = url_meta.get("is_cloaked", False)
 
-        # If all products in the pool have been tested, clear session history and cycle
-        if not target_prod and (valid_products or products):
-            pool = valid_products or products
-            self.tested_product_ids.clear()
-            idx = self.test_counter % len(pool)
-            target_prod = pool[idx]
-            self.tested_product_ids.add(target_prod.get("product_id"))
+            price = target_prod.get("deal_price", 0.0)
+            comm_rate = target_prod.get("commission_rate", 0.08)
+            est_comm = round(price * comm_rate, 2)
+            target_prod["est_comm_per_sale"] = est_comm
+            target_prod["units_to_goal"] = max(1, int(self.daily_target_inr / max(1.0, est_comm)))
+        else:
+            # Fetch a pool of live products so we can select the NEXT fresh product
+            pool_size = 15
+            products = self.scout.scout_trending_products(
+                category=category,
+                query=query,
+                platform=platform,
+                count=pool_size,
+                target_profit=self.daily_target_inr
+            )
+            if not products:
+                return {"success": False, "error": f"No live products retrieved from {platform.upper()} for '{query or category}'"}
 
-        if not target_prod:
-            return {"success": False, "error": "No available products (all retrieved items may be discarded)."}
+            # Find the next product that has not been tested and not discarded
+            valid_products = [p for p in products if p.get("product_id") not in self.discarded_product_ids]
+            target_prod = None
+            for p in (valid_products or products):
+                pid = p.get("product_id")
+                if pid and pid not in self.tested_product_ids and pid not in self.discarded_product_ids:
+                    target_prod = p
+                    self.tested_product_ids.add(pid)
+                    break
+
+            # If all products in the pool have been tested, clear session history and cycle
+            if not target_prod and (valid_products or products):
+                pool = valid_products or products
+                self.tested_product_ids.clear()
+                idx = self.test_counter % len(pool)
+                target_prod = pool[idx]
+                self.tested_product_ids.add(target_prod.get("product_id"))
+
+            if not target_prod:
+                return {"success": False, "error": "No available products (all retrieved items may be discarded)."}
 
         self.test_counter += 1
 

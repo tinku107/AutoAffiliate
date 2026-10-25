@@ -397,7 +397,7 @@ class AgentOrchestrator:
 
         self.test_counter += 1
 
-        post = self.creative.generate_content_for_product(target_prod, channel_niche=category)
+        post = self.creative.generate_content_for_product(target_prod, channel_niche=category, channel_profile=self.get_active_profile())
 
         log_agent_action("Orchestrator", f"Test product #{self.test_counter} ready: [{target_prod['platform']}] {target_prod['title'][:35]}", "completed")
         return {
@@ -428,7 +428,7 @@ class AgentOrchestrator:
             return {"success": False, "channel": prof_name, "error": "No products discovered"}
 
         prod = products[0]
-        post = self.creative.generate_content_for_product(prod, channel_niche=target_niche)
+        post = self.creative.generate_content_for_product(prod, channel_niche=target_niche, channel_profile=profile)
         post["target_channel"] = profile.get("id")
 
         publish_res = self.marketer.publish_approved_post(post, channel_profile=profile)

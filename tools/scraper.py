@@ -28,10 +28,13 @@ class ProductScraper:
             "mobiles": "https://www.amazon.in/gp/bestsellers/electronics/1389401031",
             "electronics": "https://www.amazon.in/gp/bestsellers/electronics",
             "fashion": "https://www.amazon.in/gp/bestsellers/apparel",
+            "ladies_fashion_beauty": "https://www.amazon.in/gp/bestsellers/apparel/1968256031",
+            "saree": "https://www.amazon.in/gp/bestsellers/apparel/1968256031",
             "mens_fashion": "https://www.amazon.in/gp/bestsellers/apparel/1968024031",
             "toys": "https://www.amazon.in/gp/bestsellers/toys",
             "kitchen": "https://www.amazon.in/gp/bestsellers/kitchen",
             "beauty": "https://www.amazon.in/gp/bestsellers/beauty",
+            "watches": "https://www.amazon.in/gp/bestsellers/watches",
             "movers": "https://www.amazon.in/gp/movers-and-shakers/"
         }
 
@@ -41,10 +44,13 @@ class ProductScraper:
             "mobiles": "smartphones",
             "electronics": "electronics gadgets",
             "fashion": "women dresses clothing",
+            "ladies_fashion_beauty": "women sarees kurtis watches beauty",
+            "saree": "women silk sarees party wear",
             "mens_fashion": "men shirts jeans clothing",
             "toys": "kids toys games",
             "kitchen": "kitchen appliances",
-            "beauty": "beauty grooming",
+            "beauty": "beauty skincare serum",
+            "watches": "ladies analog watch",
             "movers": "trending deals today"
         }
 

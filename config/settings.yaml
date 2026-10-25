@@ -1,9 +1,10 @@
-active_profile_id: fashion
+active_profile_id: electronics
 affiliate:
   amazon_associate_tag: autoaffil-21
   default_disclosure_text: 'Disclosure: This post contains affiliate links. As an
     associate I earn from qualifying purchases.'
   earnkaro_api_key: '5736594'
+  earnkaro_user_id: '5736594'
 ai:
   gemini_api_key: ''
   model: gemini-2.5-flash
@@ -11,9 +12,23 @@ app:
   currency: INR
   daily_revenue_target_inr: 5000.0
   name: AutoAffiliate AI
+  theme_mode: Light
   version: 1.1.0
 channel_mode: multi_channel
 channel_profiles:
+- avatar_image: data/assets/elena_avatar.jpg
+  custom_affiliate_tag: ''
+  description: Exclusively Sarees, Kurtas, Ladies Watches, Jewellery and Beauty showcased
+    by Elena
+  enabled_for_autopilot: true
+  facebook_page_id: ''
+  focus_niche: ladies_fashion_beauty
+  id: elenas_world
+  instagram_username: '@elenasworld.official'
+  meta_access_token: ''
+  name: Elena's World (Ladies Fashion & Beauty)
+  telegram_bot_token: ''
+  telegram_channel_id: ''
 - custom_affiliate_tag: ''
   description: 'Niche focus: Exclusively Ladies Dresses, Kurtas, Sarees, Handbags
     and Beauty'

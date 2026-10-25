@@ -43,7 +43,7 @@ class CreativeAgent:
         self.video_gen = VideoGenerator()
         self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY", "")
 
-    def generate_content_for_product(self, product: Dict[str, Any], post_type: str = "carousel", channel_niche: Optional[str] = None) -> Dict[str, Any]:
+    def generate_content_for_product(self, product: Dict[str, Any], post_type: str = "carousel", channel_niche: Optional[str] = None, channel_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Generates authentic humanoid copy, reel script, and visual assets without icons or special characters."""
         log_agent_action(self.name, f"Generating humanoid {post_type} content for: {product['title'][:35]}...", "started")
 
@@ -77,7 +77,37 @@ class CreativeAgent:
             use_case = "Great for office wear, weekend outings, or casual everyday layering."
             hashtags = "#mensfashion #menswear #menstyle #outfitideas #dailydeals #smartshopping"
 
-        elif "fashion" in category or "dress" in category or "kurta" in title.lower() or "saree" in title.lower():
+        elif "saree" in title.lower() or "saree" in category:
+            hooks = [
+                f"Sharing a beautiful saree discovery today: {short_title}.",
+                f"If you love traditional draping with a modern touch, take a look at {short_title}.",
+                f"Found an elegant festive saree currently available on a great price drop: {short_title}."
+            ]
+            feature_summary = "The weave has a rich graceful sheen, the pallu border is delicately finished, and the fabric drapes effortlessly."
+            use_case = "Perfect for weddings, festive celebrations, temple visits, and family ceremonies."
+            hashtags = "#saree #sareelove #silksoftsaree #indiansaree #traditionalwear #festiveoutfit #elenasworld #dailydeals"
+
+        elif "watch" in title.lower() or "jewellery" in title.lower() or "earring" in title.lower() or "necklace" in title.lower():
+            hooks = [
+                f"Sharing an elegant accessory piece today: {short_title}.",
+                f"If you are looking for a classy watch or jewellery piece to elevate everyday outfits, here is {short_title}.",
+                f"Found a very stylish ladies watch with a significant price cut: {short_title}."
+            ]
+            feature_summary = "The dial finish is subtle and refined, with a scratch-resistant build and comfortable wristband."
+            use_case = "Complements both formal office wear and ethnic party outfits effortlessly."
+            hashtags = "#watches #ladieswatch #jewellery #fashionaccessories #elegance #elenasworld #shoppingfinds"
+
+        elif "beauty" in category or "skincare" in category or "serum" in title.lower() or "cream" in title.lower() or "sunscreen" in title.lower():
+            hooks = [
+                f"Sharing a verified skincare find that is currently on offer: {short_title}.",
+                f"If you want healthy hydrated skin and a lightweight everyday routine, take a look at {short_title}.",
+                f"Spotted a genuine discount on {short_title} today."
+            ]
+            feature_summary = "Lightweight formulation, absorbs quickly without feeling greasy, and dermatologically tested for daily skin nourishment."
+            use_case = "Ideal for morning skincare prep, sun protection, and evening hydration rituals."
+            hashtags = "#beauty #skincare #skincareroutine #glowingskin #selfcare #elenasworld #beautyfinds"
+
+        elif "fashion" in category or "dress" in category or "kurta" in title.lower() or "kurti" in title.lower():
             hooks = [
                 f"Found a really pretty option while checking deals today: {short_title}.",
                 f"If you are looking for comfortable ethnic wear, take a look at {short_title}.",
@@ -85,8 +115,7 @@ class CreativeAgent:
             ]
             feature_summary = "The fabric feels breathable and the stitching details look very neat in person."
             use_case = "Works nicely for festive gatherings, family functions, or everyday casual styling."
-            hashtags = "#fashion #indianfashion #ethnicwear #kurtis #sarees #outfitideas #dailydeals"
-
+            hashtags = "#fashion #indianfashion #ethnicwear #kurtis #sarees #outfitideas #elenasworld #dailydeals"
 
         elif "mobile" in category or "electronic" in category or "tech" in category or deal_price > 15000:
             hooks = [
@@ -121,21 +150,30 @@ class CreativeAgent:
 
         headline = random.choice(hooks)
 
-        # 100% Humanoid Caption (Zero emojis, zero special bullets, natural conversational English)
-        mrp_text = f" Original retail price was {orig_price} rupees, bringing the discount to {discount} percent." if orig_price > deal_price else ""
+        # 100% Humanoid Caption with Explicit Real Price (MRP) & Offer Price
+        price_breakdown = f"""Price Details:
+Real Price (MRP): Rs {orig_price}
+Offer Deal Price: Rs {deal_price}
+You Save: Flat {discount} percent off""" if orig_price > deal_price else f"Offer Price: Rs {deal_price}"
+
+        prof_name = (channel_profile or {}).get("name", "").lower() if isinstance(channel_profile, dict) else ""
+        brand_signoff = "Curated by Elena for Elena's World" if ("elena" in category or "saree" in category or "elena" in prof_name) else "Curated Deals Team"
+
         caption = f"""{headline}
 
-Here is a quick overview of this item:
-Current deal price is {deal_price} rupees on {platform_name}.{mrp_text}
-Customer rating is currently {rating} out of 5 based on verified purchaser reviews.
+{price_breakdown}
+
+Rating: {rating} out of 5 based on verified buyer reviews.
+Platform: {platform_name}
+
+Highlights:
 {feature_summary}
 {use_case}
 
-If you would like the direct verified link to check sizes or full specifications, simply reply or comment link below and I will send it straight to your message inbox.
+How to buy:
+Comment LINK below and I will send the direct verified purchase link straight to your message inbox. You can also tap the link in bio to browse all featured items today.
 
-You can also visit the link in my profile bio to see all of today's handpicked recommendations in one place.
-
-Online prices and stock availability can change frequently on the platform.
+{brand_signoff}
 
 Disclosure: This post contains affiliate links. As an associate I earn from qualifying purchases.
 
@@ -144,28 +182,30 @@ Disclosure: This post contains affiliate links. As an associate I earn from qual
 
         caption = clean_humanoid_text(caption)
 
-        # 15-Second Clean Humanoid Reel Script (Zero icons, zero special glyphs)
+        # 15-Second Clean Humanoid Reel Script with Avatar Visual Cues
+        avatar_cue = "Elena wearing and showcasing the saree drape" if "saree" in title.lower() else ("Elena wearing the watch and showing wrist details" if "watch" in title.lower() else "Elena holding and showcasing the item")
+
         reel_script = f"""15-Second Video Script: {short_title}
 
 Scene 1 (0 to 3 seconds):
-Visual: Clear view of the {short_title}.
+Visual: {avatar_cue} with clean studio lighting.
 Voiceover: "{headline}"
-On-screen text: Deal Alert: {short_title}
+On-screen text: Real Price Rs {orig_price} | Offer Rs {deal_price}
 
 Scene 2 (3 to 8 seconds):
-Visual: Highlighting the key product features.
-Voiceover: "The current price is {deal_price} rupees. {feature_summary}."
-On-screen text: Deal Price: {deal_price} rupees
+Visual: Close-up on the fabric weave, dial, or product texture.
+Voiceover: "Real price is {orig_price} rupees, but today it is on offer for just {deal_price} rupees. {feature_summary}"
+On-screen text: Save {discount} percent
 
 Scene 3 (8 to 12 seconds):
-Visual: Showing customer reviews and close-up detail.
+Visual: Highlighting product quality and certified buyer rating.
 Voiceover: "It has a {rating} star rating from verified customers."
 On-screen text: Rated {rating} out of 5
 
 Scene 4 (12 to 15 seconds):
-Visual: Prompting viewer to comment.
-Voiceover: "Comment link below and I will message you the direct purchase link right away."
-On-screen text: Comment LINK for Direct Link
+Visual: Elena smiling and prompting viewer to comment.
+Voiceover: "Comment LINK below and I will message you the direct purchase link right away."
+On-screen text: Comment LINK for Direct Order Link
 """
         reel_script = clean_humanoid_text(reel_script)
 

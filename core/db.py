@@ -247,6 +247,25 @@ def update_post_status(post_id: int, status: str, external_id: Optional[str] = N
     conn.close()
 
 
+def bulk_update_posts(posts_data: List[Dict[str, Any]]):
+    """Updates headline, status, and platform for posts edited in table editor."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    for p in posts_data:
+        pid = p.get("id")
+        if not pid:
+            continue
+        status = str(p.get("status", "draft"))
+        headline = str(p.get("headline", ""))
+        platform = str(p.get("platform", "instagram"))
+        cursor.execute("""
+        UPDATE posts SET headline = ?, status = ?, platform = ?
+        WHERE id = ?
+        """, (headline, status, platform, pid))
+    conn.commit()
+    conn.close()
+
+
 # ---------------- ENGAGEMENT REPO ----------------
 def save_engagement_task(task: Dict[str, Any]) -> int:
     conn = get_db_connection()
@@ -303,6 +322,38 @@ def log_daily_revenue(log_date_str: str, target: float = 500.0, earnings: float 
     """, (log_date_str, target, earnings, clicks, orders, notes))
     conn.commit()
     conn.close()
+
+
+def set_daily_revenue_row(log_date_str: str, target: float = 500.0, earnings: float = 0.0, clicks: int = 0, orders: int = 0, notes: str = ""):
+    """Sets or replaces a specific row in daily_revenue."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO daily_revenue (log_date, target_inr, estimated_earnings_inr, clicks, orders, notes)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(log_date) DO UPDATE SET
+        target_inr = excluded.target_inr,
+        estimated_earnings_inr = excluded.estimated_earnings_inr,
+        clicks = excluded.clicks,
+        orders = excluded.orders,
+        notes = excluded.notes
+    """, (log_date_str, float(target), float(earnings), int(clicks), int(orders), str(notes or "")))
+    conn.commit()
+    conn.close()
+
+
+def bulk_save_daily_revenue(rows: List[Dict[str, Any]]):
+    """Saves multiple rows from the daily revenue table editor."""
+    for r in rows:
+        d_str = str(r.get("log_date") or date.today().isoformat())
+        set_daily_revenue_row(
+            log_date_str=d_str,
+            target=float(r.get("target_inr") or 500.0),
+            earnings=float(r.get("estimated_earnings_inr") or 0.0),
+            clicks=int(r.get("clicks") or 0),
+            orders=int(r.get("orders") or 0),
+            notes=str(r.get("notes") or "")
+        )
 
 
 def get_revenue_history(days: int = 14) -> List[Dict[str, Any]]:

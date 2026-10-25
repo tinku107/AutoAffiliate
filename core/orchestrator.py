@@ -270,6 +270,85 @@ class AgentOrchestrator:
             print(f"Error deleting niche mapping: {e}")
             return False
 
+    def bulk_save_channel_profiles(self, profiles_list: List[Dict[str, Any]]) -> bool:
+        """Saves a full list of channel profiles edited in the table editor."""
+        cfg = self._load_config()
+        clean_profiles = []
+        for p in profiles_list:
+            if not p.get("name"):
+                continue
+            pid = str(p.get("id") or p.get("name", "channel").lower().replace(" ", "_"))
+            p_data = {
+                "id": pid,
+                "name": str(p.get("name")),
+                "focus_niche": str(p.get("focus_niche", "all")).strip().lower(),
+                "description": str(p.get("description", "")),
+                "instagram_username": str(p.get("instagram_username", "")),
+                "facebook_page_id": str(p.get("facebook_page_id", "")),
+                "telegram_channel_id": str(p.get("telegram_channel_id", "")),
+                "enabled_for_autopilot": bool(p.get("enabled_for_autopilot", True))
+            }
+            clean_profiles.append(p_data)
+        if clean_profiles:
+            cfg["channel_profiles"] = clean_profiles
+            try:
+                with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                    yaml.safe_dump(cfg, f, default_flow_style=False)
+                self.config = cfg
+                log_agent_action("Orchestrator", f"Bulk updated {len(clean_profiles)} channel profiles from table editor", "completed")
+                return True
+            except Exception as e:
+                print(f"Error bulk saving profiles: {e}")
+                return False
+        return False
+
+    def bulk_save_niche_mappings(self, mappings_list: List[Dict[str, Any]]) -> bool:
+        """Saves a full list of niche mappings edited in the table editor."""
+        cfg = self._load_config()
+        clean_mappings = []
+        for m in mappings_list:
+            if not m.get("name") or not m.get("keywords"):
+                continue
+            nid = str(m.get("id") or m.get("name", "niche").lower().replace(" ", "_"))
+            m_data = {
+                "id": nid,
+                "name": str(m.get("name")),
+                "keywords": str(m.get("keywords")),
+                "mapped_account_id": str(m.get("mapped_account_id", "fashion")),
+                "commission_rate": str(m.get("commission_rate", "5% - 8%"))
+            }
+            clean_mappings.append(m_data)
+        if clean_mappings:
+            cfg["niche_mappings"] = clean_mappings
+            try:
+                with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                    yaml.safe_dump(cfg, f, default_flow_style=False)
+                self.config = cfg
+                log_agent_action("Orchestrator", f"Bulk updated {len(clean_mappings)} niche mappings from table editor", "completed")
+                return True
+            except Exception as e:
+                print(f"Error bulk saving niche mappings: {e}")
+                return False
+        return False
+
+    def bulk_save_platforms(self, platforms_list: List[Dict[str, Any]]) -> bool:
+        """Saves a full list of platforms edited in the platforms table editor."""
+        for p in platforms_list:
+            key = str(p.get("key") or p.get("name", "platform").lower().replace(" ", "_")).strip()
+            name = str(p.get("name", key.capitalize())).strip()
+            domain = str(p.get("domain", f"{key}.com")).strip()
+            param = str(p.get("param", "tag")).strip()
+            aff_id = str(p.get("id", "affiliate")).strip()
+            if key and domain:
+                self.scout.tagger.add_platform(
+                    key=key,
+                    name=name,
+                    domain=domain,
+                    param=param,
+                    affiliate_id=aff_id
+                )
+        log_agent_action("Orchestrator", "Bulk updated platforms from table editor", "completed")
+        return True
 
 
     def test_next_product(

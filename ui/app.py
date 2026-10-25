@@ -1,12 +1,12 @@
 """AutoAffiliate AI - Enterprise Admin Panel.
 Complete Admin Panel Model featuring:
-1. Executive Dashboard (KPIs, active channels, live revenue tracker)
-2. Channel Accounts Manager (Add Men's Fashion, Ladies Fashion, Electronics, Any Niche)
-3. Niche & Account Mapping (Visual matrix of Niche -> Keywords -> Mapped Account)
-4. E-Commerce Platforms (Amazon, Flipkart, Myntra, Nykaa, Ajio, Meesho, Croma + Add Platform + Live URL Scraper)
-5. Autonomous Autopilot (Dynamic non-fixed timing, independent channel dispatch, organic growth)
+1. Executive Dashboard (KPIs, active channels, editable revenue & click tracker table)
+2. Channel Accounts Manager (In-table editor for all accounts + 1-click presets & cards)
+3. Niche & Account Mapping (In-table editable matrix of Niche -> Keywords -> Mapped Account)
+4. E-Commerce Platforms (In-table editable platforms registry + live universal URL scraper)
+5. Autonomous Autopilot (In-table bulk account activation + dynamic jitter timing)
 6. Live Product Sandbox (100% Humanoid copy, zero icons/emojis, 4-slide carousels, AI vertical reels)
-7. Content & Asset Library (Draft & published posts, 1-click approvals)
+7. Content & Asset Library (In-table post status editor + visual card gallery)
 8. Grok AI Command Console (Natural language employee bot dispatch)
 9. Global Settings & Compliance (Target profit ₹X, Amazon tag, EarnKaro, disclosures)
 10. Page Setup & Launch Playbook (Step-by-step Meta & Affiliate guides)
@@ -18,7 +18,7 @@ import sys
 import time
 import random
 import yaml
-from datetime import datetime
+from datetime import datetime, date
 import pandas as pd
 
 # Add project root to sys.path
@@ -34,7 +34,10 @@ from core.db import (
     get_recent_logs,
     get_engagement_tasks,
     update_post_status,
-    log_daily_revenue
+    log_daily_revenue,
+    set_daily_revenue_row,
+    bulk_save_daily_revenue,
+    bulk_update_posts
 )
 
 # Page Configuration
@@ -45,90 +48,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Enterprise Admin CSS
-st.markdown("""
-<style>
-    .stApp {
-        background-color: #0b0f19;
-        color: #e2e8f0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    .admin-brand {
-        font-size: 1.5rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 2px;
-    }
-    .admin-badge {
-        background: #1e1b4b;
-        color: #a5b4fc;
-        font-size: 0.72rem;
-        padding: 2px 8px;
-        border-radius: 6px;
-        font-weight: 600;
-        border: 1px solid #4338ca;
-        display: inline-block;
-        margin-bottom: 12px;
-    }
-    .kpi-card {
-        background: #131b2e;
-        border: 1px solid #1e293b;
-        border-radius: 12px;
-        padding: 16px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    }
-    .kpi-title {
-        color: #94a3b8;
-        font-size: 0.85rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .kpi-value {
-        color: #f8fafc;
-        font-size: 1.8rem;
-        font-weight: 700;
-        margin: 4px 0;
-    }
-    .kpi-sub {
-        color: #34d399;
-        font-size: 0.85rem;
-        font-weight: 500;
-    }
-    .status-pill-active {
-        background: #065f46;
-        color: #34d399;
-        font-size: 0.75rem;
-        padding: 3px 8px;
-        border-radius: 9999px;
-        font-weight: 600;
-    }
-    .status-pill-standby {
-        background: #334155;
-        color: #94a3b8;
-        font-size: 0.75rem;
-        padding: 3px 8px;
-        border-radius: 9999px;
-        font-weight: 600;
-    }
-    .account-card {
-        background: #151d30;
-        border: 1px solid #243048;
-        border-radius: 10px;
-        padding: 16px;
-        margin-bottom: 12px;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-
 # Initialize Orchestrator & Daemon in Session State
 if "orchestrator" not in st.session_state or not hasattr(st.session_state.orchestrator, "tested_product_ids"):
     st.session_state.orchestrator = AgentOrchestrator()
 
 daemon = get_auto_daemon()
+
+# Load saved theme preference
+cfg_all = st.session_state.orchestrator._load_config()
+default_theme = cfg_all.get("app", {}).get("theme_mode", "Light")
+
+if "theme_mode" not in st.session_state:
+    st.session_state.theme_mode = default_theme
 
 if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = [
@@ -143,21 +74,280 @@ if "last_test_result" not in st.session_state:
     st.session_state.last_test_result = None
 
 # ==============================================================================
-# SIDEBAR ADMIN NAVIGATION
+# THEME STYLING INJECTION (LIGHT & DARK TEMPLATE SUPPORT)
+# ==============================================================================
+is_light = (st.session_state.theme_mode == "Light")
+is_auto = (st.session_state.theme_mode == "Auto")
+
+if is_light:
+    st.markdown("""
+    <style>
+        /* Light Template (Modern Enterprise SaaS) */
+        .stApp {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        header[data-testid="stHeader"] {
+            background-color: #f8fafc !important;
+        }
+        section[data-testid="stSidebar"] {
+            background-color: #ffffff !important;
+            border-right: 1px solid #e2e8f0 !important;
+        }
+        .admin-brand {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #0284c7 0%, #4f46e5 50%, #9333ea 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2px;
+        }
+        .admin-badge {
+            background: #e0e7ff;
+            color: #3730a3;
+            font-size: 0.72rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            border: 1px solid #c7d2fe;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+        .kpi-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
+        }
+        .kpi-title {
+            color: #64748b;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .kpi-value {
+            color: #0f172a;
+            font-size: 1.85rem;
+            font-weight: 800;
+            margin: 4px 0;
+        }
+        .kpi-sub {
+            color: #059669;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .account-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+        .status-pill-active {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #86efac;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-weight: 700;
+        }
+        .status-pill-standby {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        .table-hint {
+            color: #0284c7;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+elif not is_auto:
+    st.markdown("""
+    <style>
+        /* Dark Template (Modern Slate) */
+        .stApp {
+            background-color: #0b0f19 !important;
+            color: #e2e8f0 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        header[data-testid="stHeader"] {
+            background-color: #0b0f19 !important;
+        }
+        section[data-testid="stSidebar"] {
+            background-color: #0f172a !important;
+            border-right: 1px solid #1e293b !important;
+        }
+        .admin-brand {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2px;
+        }
+        .admin-badge {
+            background: #1e1b4b;
+            color: #a5b4fc;
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid #4338ca;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+        .kpi-card {
+            background: #131b2e;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        .kpi-title {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .kpi-value {
+            color: #f8fafc;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 4px 0;
+        }
+        .kpi-sub {
+            color: #34d399;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .account-card {
+            background: #151d30;
+            border: 1px solid #243048;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .status-pill-active {
+            background: #065f46;
+            color: #34d399;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        .status-pill-standby {
+            background: #334155;
+            color: #94a3b8;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        .table-hint {
+            color: #38bdf8;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    # Auto / System Default mode
+    st.markdown("""
+    <style>
+        .admin-brand {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2px;
+        }
+        .admin-badge {
+            background: rgba(99, 102, 241, 0.2);
+            color: inherit;
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+        .kpi-card {
+            background: var(--secondary-background-color);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .kpi-title {
+            opacity: 0.8;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 4px 0;
+        }
+        .table-hint {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ==============================================================================
+# SIDEBAR ADMIN NAVIGATION & CONTROLS
 # ==============================================================================
 with st.sidebar:
     st.markdown('<div class="admin-brand">AutoAffiliate AI</div>', unsafe_allow_html=True)
-    st.markdown('<span class="admin-badge">ENTERPRISE ADMIN v1.2</span>', unsafe_allow_html=True)
+    st.markdown('<span class="admin-badge">ENTERPRISE ADMIN v2.0</span>', unsafe_allow_html=True)
+
+    # 1. Theme Template Selector
+    st.caption("APPEARANCE THEME")
+    theme_opts = ["☀️ Light Template", "🌑 Dark Template", "🔄 System Auto"]
+    current_idx = 0 if st.session_state.theme_mode == "Light" else (1 if st.session_state.theme_mode == "Dark" else 2)
+    selected_theme_label = st.radio(
+        "Theme Template",
+        theme_opts,
+        index=current_idx,
+        label_visibility="collapsed"
+    )
+    new_theme = "Light" if "Light" in selected_theme_label else ("Dark" if "Dark" in selected_theme_label else "Auto")
+    if new_theme != st.session_state.theme_mode:
+        st.session_state.theme_mode = new_theme
+        cfg = st.session_state.orchestrator._load_config()
+        if "app" not in cfg:
+            cfg["app"] = {}
+        cfg["app"]["theme_mode"] = new_theme
+        try:
+            from core.orchestrator import CONFIG_PATH
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, default_flow_style=False)
+        except Exception:
+            pass
+        st.rerun()
+
+    st.markdown("---")
 
     # Autopilot status pill in sidebar
     if daemon.is_running:
-        st.markdown("<span style='color:#34d399; font-weight:700;'>🟢 24/7 AUTOPILOT ACTIVE</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color:#15803d if is_light else #34d399; font-weight:700;'>🟢 24/7 AUTOPILOT ACTIVE</span>", unsafe_allow_html=True)
     else:
-        st.markdown("<span style='color:#94a3b8; font-weight:600;'>⚪ AUTOPILOT STANDBY</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color:#64748b if is_light else #94a3b8; font-weight:600;'>⚪ AUTOPILOT STANDBY</span>", unsafe_allow_html=True)
 
-    st.markdown("---")
     st.caption("ADMIN NAVIGATION")
-
     nav_selection = st.radio(
         "Navigation Menu",
         [
@@ -203,13 +393,14 @@ with st.sidebar:
 # ==============================================================================
 # TOP BREADCRUMB & CONSOLE HEADER
 # ==============================================================================
-header_c1, header_c2 = st.columns([3, 1.2])
+header_c1, header_c2 = st.columns([3, 1.4])
 with header_c1:
     st.markdown(f"### {nav_selection}")
 with header_c2:
     all_prof = st.session_state.orchestrator.get_channel_profiles()
     en_prof = st.session_state.orchestrator.get_enabled_autopilot_profiles()
-    st.markdown(f"<div style='text-align:right; margin-top:8px;'><span style='color:#38bdf8; font-weight:600;'>{len(en_prof)} of {len(all_prof)} Accounts Active in Autopilot</span></div>", unsafe_allow_html=True)
+    header_color = "#0284c7" if is_light else "#38bdf8"
+    st.markdown(f"<div style='text-align:right; margin-top:8px;'><span style='color:{header_color}; font-weight:700;'>{len(en_prof)} of {len(all_prof)} Accounts Active in Autopilot</span></div>", unsafe_allow_html=True)
 
 st.divider()
 
@@ -220,16 +411,16 @@ st.divider()
 if nav_selection == "📊 Executive Dashboard":
     # 1. KPI Cards Row
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    total_rev = sum(h.get("estimated_earnings_inr", 0) for h in get_revenue_history(days=14))
-    total_clicks = sum(h.get("clicks", 0) for h in get_revenue_history(days=14))
-    total_orders = sum(h.get("orders", 0) for h in get_revenue_history(days=14))
+    total_rev = sum(h.get("estimated_earnings_inr", 0) for h in get_revenue_history(days=30))
+    total_clicks = sum(h.get("clicks", 0) for h in get_revenue_history(days=30))
+    total_orders = sum(h.get("orders", 0) for h in get_revenue_history(days=30))
 
     with kpi1:
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-title">Daily Revenue Target (X)</div>
             <div class="kpi-value">₹{current_target:,.0f}</div>
-            <div class="kpi-sub">Fully Configurable Anytime</div>
+            <div class="kpi-sub">Configurable in Global Settings</div>
         </div>
         """, unsafe_allow_html=True)
     with kpi2:
@@ -259,7 +450,55 @@ if nav_selection == "📊 Executive Dashboard":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 2. Channel Matrix Overview
+    # 2. IN-TABLE EDITABLE REVENUE & METRICS TRACKER
+    st.subheader("📈 Daily Revenue & Performance Tracker (In-Table Editable)")
+    st.markdown("<span class='table-hint'>✏️ Edit clicks, orders, earnings, or notes directly in the table below. Click 'Save Table Changes' to persist.</span>", unsafe_allow_html=True)
+
+    rev_rows = get_revenue_history(days=14)
+    if not rev_rows:
+        # Default placeholder row for today if empty
+        rev_rows = [{
+            "log_date": date.today().isoformat(),
+            "target_inr": float(current_target),
+            "estimated_earnings_inr": 0.0,
+            "clicks": 0,
+            "orders": 0,
+            "notes": "First autonomous cycle launched"
+        }]
+
+    df_rev = pd.DataFrame(rev_rows)
+    # Ensure expected columns
+    for col, default_val in [("log_date", date.today().isoformat()), ("target_inr", 500.0), ("estimated_earnings_inr", 0.0), ("clicks", 0), ("orders", 0), ("notes", "")]:
+        if col not in df_rev.columns:
+            df_rev[col] = default_val
+
+    df_rev = df_rev[["log_date", "target_inr", "estimated_earnings_inr", "clicks", "orders", "notes"]]
+
+    edited_rev_df = st.data_editor(
+        df_rev,
+        column_config={
+            "log_date": st.column_config.TextColumn("Date (YYYY-MM-DD)", required=True),
+            "target_inr": st.column_config.NumberColumn("Target (INR ₹)", min_value=0.0, step=100.0),
+            "estimated_earnings_inr": st.column_config.NumberColumn("Earnings (INR ₹)", min_value=0.0, step=10.0),
+            "clicks": st.column_config.NumberColumn("Total Clicks", min_value=0, step=1),
+            "orders": st.column_config.NumberColumn("Orders", min_value=0, step=1),
+            "notes": st.column_config.TextColumn("Notes / Channels")
+        },
+        num_rows="dynamic",
+        use_container_width=True,
+        key="data_editor_revenue"
+    )
+
+    col_rv_save, col_rv_info = st.columns([1.5, 3])
+    with col_rv_save:
+        if st.button("💾 Save Revenue Table Changes", use_container_width=True, key="btn_save_revenue_table"):
+            bulk_save_daily_revenue(edited_rev_df.to_dict("records"))
+            st.success("Revenue log saved successfully!")
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 3. Channel Matrix Overview
     st.subheader("🏢 Connected Social Media Accounts & Niche Matrix")
     profiles = st.session_state.orchestrator.get_channel_profiles()
 
@@ -276,9 +515,9 @@ if nav_selection == "📊 Executive Dashboard":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. Recent Real-Time Bot Operations
+    # 4. Recent Real-Time Bot Operations
     st.subheader("🔍 Operational Audit Trail (Live Bot Actions)")
-    logs = get_recent_logs(limit=12)
+    logs = get_recent_logs(limit=10)
     if logs:
         df_logs = pd.DataFrame(logs)[["created_at", "agent_name", "action", "status", "details"]]
         df_logs.columns = ["Timestamp", "Agent", "Action Description", "Status", "Technical Details"]
@@ -297,15 +536,53 @@ elif nav_selection == "🏢 Channel Accounts Manager":
     - Electronics posts exclusively to Electronics FB & Insta.
     """)
 
-    # 1. Quick Presets Bar
-    st.markdown("#### ⚡ Quick Actions & Presets:")
-    col_p1, col_p2, col_p3 = st.columns(3)
+    # 1. IN-TABLE EDITABLE ACCOUNTS TABLE
+    st.subheader("📋 Registered Accounts (In-Table Editable)")
+    st.markdown("<span class='table-hint'>✏️ Edit account names, handles, assigned niches, and autopilot checkboxes directly inside this table. Click 'Save All Account Changes' to update.</span>", unsafe_allow_html=True)
+
     profiles = st.session_state.orchestrator.get_channel_profiles()
+    df_acc = pd.DataFrame(profiles)
+    for col, def_val in [("id", "channel"), ("name", "New Account"), ("focus_niche", "fashion"), ("instagram_username", ""), ("facebook_page_id", ""), ("telegram_channel_id", ""), ("enabled_for_autopilot", True)]:
+        if col not in df_acc.columns:
+            df_acc[col] = def_val
+
+    df_acc_view = df_acc[["id", "name", "focus_niche", "instagram_username", "facebook_page_id", "telegram_channel_id", "enabled_for_autopilot"]]
+
+    niche_options = ["fashion", "mens_fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "home_decor", "fitness", "general", "all"]
+
+    edited_acc_df = st.data_editor(
+        df_acc_view,
+        column_config={
+            "id": st.column_config.TextColumn("Account Key / ID", required=True),
+            "name": st.column_config.TextColumn("Display Name", required=True),
+            "focus_niche": st.column_config.SelectboxColumn("Assigned Niche", options=niche_options, required=True),
+            "instagram_username": st.column_config.TextColumn("Instagram Handle"),
+            "facebook_page_id": st.column_config.TextColumn("Facebook Page ID"),
+            "telegram_channel_id": st.column_config.TextColumn("Telegram Channel"),
+            "enabled_for_autopilot": st.column_config.CheckboxColumn("Autopilot Enabled", default=True)
+        },
+        num_rows="dynamic",
+        use_container_width=True,
+        key="data_editor_accounts"
+    )
+
+    col_acc_save, col_acc_act = st.columns([1.5, 3])
+    with col_acc_save:
+        if st.button("💾 Save All Account Changes", use_container_width=True, key="btn_save_accounts_table"):
+            st.session_state.orchestrator.bulk_save_channel_profiles(edited_acc_df.to_dict("records"))
+            st.success("Channel accounts saved successfully!")
+            st.rerun()
+
+    st.markdown("---")
+
+    # 2. Quick Presets Bar
+    st.markdown("#### ⚡ 1-Click Presets & Quick Focus:")
+    col_p1, col_p2, col_p3 = st.columns(3)
     has_mens = any(p["id"] == "mens_fashion" for p in profiles)
 
     with col_p1:
         if not has_mens:
-            if st.button("👔 1-Click Add Men's Fashion Account (`UrbanGent India`)", use_container_width=True):
+            if st.button("👔 1-Click Add Men's Fashion (`UrbanGent India`)", use_container_width=True):
                 st.session_state.orchestrator.save_channel_profile({
                     "id": "mens_fashion",
                     "name": "UrbanGent India (Men's Fashion)",
@@ -316,10 +593,10 @@ elif nav_selection == "🏢 Channel Accounts Manager":
                     "telegram_channel_id": "",
                     "enabled_for_autopilot": True
                 })
-                st.success("UrbanGent India (Men's Fashion) added successfully!")
+                st.success("UrbanGent India added successfully!")
                 st.rerun()
         else:
-            st.info("✓ Men's Fashion (`UrbanGent India`) is already registered.")
+            st.info("✓ Men's Fashion (`UrbanGent India`) is registered.")
 
     with col_p2:
         if st.button("👗 Focus Active View on Ladies Fashion", use_container_width=True):
@@ -333,8 +610,8 @@ elif nav_selection == "🏢 Channel Accounts Manager":
 
     st.markdown("---")
 
-    # 2. Existing Connected Accounts Cards
-    st.markdown("### 📱 Registered Accounts List")
+    # 3. Existing Connected Accounts Visual Cards
+    st.markdown("### 📱 Active Profiles Overview")
     curr_active = st.session_state.orchestrator.get_active_profile()
 
     for prof in profiles:
@@ -353,111 +630,14 @@ elif nav_selection == "🏢 Channel Accounts Manager":
                 st.markdown(f"• **Facebook Page ID:** `{prof.get('facebook_page_id') or 'Not configured'}`")
                 st.markdown(f"• **Telegram Channel:** `{prof.get('telegram_channel_id') or 'Not configured'}`")
             with col_a3:
-                ap_chk = st.checkbox(
-                    "Autopilot Enabled",
-                    value=is_ap_enabled,
-                    key=f"mgr_ap_{pid}",
-                    help="Enable to automatically scout and post deals for this account"
-                )
-                if ap_chk != is_ap_enabled:
-                    st.session_state.orchestrator.set_profile_autopilot_enabled(pid, ap_chk)
-                    st.rerun()
-
                 if not is_act:
                     if st.button("Set as Active Focus", key=f"btn_set_act_{pid}", use_container_width=True):
                         st.session_state.orchestrator.set_active_profile(pid)
                         st.rerun()
                 else:
-                    st.markdown("<span style='color:#34d399; font-weight:700;'>🟢 ACTIVE FOCUS</span>", unsafe_allow_html=True)
+                    active_color = "#15803d" if is_light else "#34d399"
+                    st.markdown(f"<span style='color:{active_color}; font-weight:700;'>🟢 ACTIVE FOCUS</span>", unsafe_allow_html=True)
             st.divider()
-
-    # 3. Add New Account Form (100% Flexible)
-    with st.expander("➕ Register Another Account (e.g. Men's Fashion, Home Decor, Fitness)", expanded=False):
-        with st.form("form_add_new_account"):
-            st.write("**Account Profile Details:**")
-            f_name = st.text_input("Account Display Name", placeholder="e.g. UrbanGent India or HomeStyle Bharat")
-            f_col_n1, f_col_n2 = st.columns(2)
-            with f_col_n1:
-                f_niche_preset = st.selectbox(
-                    "Niche Category",
-                    ["mens_fashion", "fashion", "mobiles", "electronics", "toys", "kitchen", "beauty", "home_decor", "fitness", "custom"],
-                    format_func=lambda x: {
-                        "mens_fashion": "👔 Men's Fashion & Grooming",
-                        "fashion": "👗 Ladies Fashion & Dresses",
-                        "mobiles": "📱 High-Ticket Mobiles & Tech",
-                        "electronics": "💻 Electronics & Gadgets",
-                        "toys": "🧸 Kids Toys & Games",
-                        "kitchen": "🍳 Home & Kitchen Finds",
-                        "beauty": "💄 Beauty & Personal Care",
-                        "home_decor": "🏠 Home Decor & Organizing",
-                        "fitness": "🏋️ Fitness & Gym Gear",
-                        "custom": "✨ Custom Niche (Specify on right)"
-                    }.get(x, x)
-                )
-            with f_col_n2:
-                f_niche_custom = st.text_input("Or Type Custom Niche Name", placeholder="e.g. baby_care, luxury_watches")
-
-            assigned_niche = f_niche_custom.strip().lower() if f_niche_custom.strip() else f_niche_preset
-            f_desc = st.text_input("Description", placeholder="e.g. Dedicated to men's shirts, trousers, jackets, and accessories")
-            f_ig = st.text_input("Instagram Handle", placeholder="e.g. @urbangent.in")
-            f_fb = st.text_input("Facebook Page ID", placeholder="e.g. 1029384756")
-            f_tg = st.text_input("Telegram Channel (Optional)", placeholder="e.g. @urbangent_deals")
-            f_token = st.text_input("Meta Graph API Access Token (Optional)", type="password", placeholder="Leave blank to use default or simulation")
-            f_aff = st.text_input("Custom Affiliate Tag Override (Optional)", placeholder="Leave blank to use global tag")
-            f_auto = st.checkbox("Enable for Autonomous Autopilot", value=True)
-
-            if st.form_submit_button("Save & Register Account"):
-                if f_name:
-                    p_id = f_name.lower().replace(" ", "_").replace("(", "").replace(")", "")[:20]
-                    st.session_state.orchestrator.save_channel_profile({
-                        "id": p_id,
-                        "name": f_name,
-                        "focus_niche": assigned_niche,
-                        "description": f_desc,
-                        "instagram_username": f_ig,
-                        "facebook_page_id": f_fb,
-                        "telegram_channel_id": f_tg,
-                        "meta_access_token": f_token,
-                        "custom_affiliate_tag": f_aff,
-                        "enabled_for_autopilot": f_auto
-                    })
-                    st.success(f"Account '{f_name}' registered successfully with niche '{assigned_niche}'!")
-                    st.rerun()
-
-    # 4. Edit / Delete Account Drawer
-    with st.expander("✏️ Edit / Delete an Account", expanded=False):
-        edit_pid = st.selectbox(
-            "Select Account to Modify",
-            [p["id"] for p in profiles],
-            format_func=lambda pid: next((p["name"] for p in profiles if p["id"] == pid), pid)
-        )
-        target_p = next((p for p in profiles if p["id"] == edit_pid), None)
-        if target_p:
-            with st.form("form_edit_acc"):
-                e_name = st.text_input("Account Display Name", value=target_p.get("name", ""))
-                e_niche = st.text_input("Niche Focus", value=target_p.get("focus_niche", "all"))
-                e_desc = st.text_input("Description", value=target_p.get("description", ""))
-                e_ig = st.text_input("Instagram Handle", value=target_p.get("instagram_username", ""))
-                e_fb = st.text_input("Facebook Page ID", value=target_p.get("facebook_page_id", ""))
-                e_tg = st.text_input("Telegram Channel", value=target_p.get("telegram_channel_id", ""))
-                e_ap = st.checkbox("Enabled for Autopilot", value=target_p.get("enabled_for_autopilot", True))
-                if st.form_submit_button("Update Account"):
-                    target_p["name"] = e_name
-                    target_p["focus_niche"] = e_niche.strip().lower()
-                    target_p["description"] = e_desc
-                    target_p["instagram_username"] = e_ig
-                    target_p["facebook_page_id"] = e_fb
-                    target_p["telegram_channel_id"] = e_tg
-                    target_p["enabled_for_autopilot"] = e_ap
-                    st.session_state.orchestrator.save_channel_profile(target_p)
-                    st.success("Account updated successfully!")
-                    st.rerun()
-
-            if len(profiles) > 1:
-                if st.button("🗑️ Delete This Account", key=f"del_acc_{edit_pid}"):
-                    if st.session_state.orchestrator.delete_channel_profile(edit_pid):
-                        st.success("Account deleted.")
-                        st.rerun()
 
 
 # ==============================================================================
@@ -476,29 +656,46 @@ elif nav_selection == "🎯 Niche & Account Mapping":
     3. **Autopilot Routing:** When Autopilot triggers for an account, it looks up its mapped niche and keywords, finds fresh deals, generates 100% humanoid copy, and publishes exclusively to that account.
     """)
 
-    # Display Current Mapping Matrix
+    # 1. IN-TABLE EDITABLE NICHE MAPPING MATRIX
+    st.subheader("📋 Niche Mapping Matrix (In-Table Editable)")
+    st.markdown("<span class='table-hint'>✏️ Edit Niche Names, Keywords, Mapped Accounts, and Commission Rates directly in the table. Add or delete rows as needed!</span>", unsafe_allow_html=True)
+
     mappings = st.session_state.orchestrator.get_niche_mappings()
     profiles = st.session_state.orchestrator.get_channel_profiles()
+    profile_ids = [p["id"] for p in profiles]
 
-    map_display = []
-    for m in mappings:
-        acc_id = m.get("mapped_account_id")
-        acc_obj = next((p for p in profiles if p["id"] == acc_id), None)
-        acc_name = acc_obj.get("name") if acc_obj else f"Account #{acc_id}"
-        map_display.append({
-            "Niche ID": m.get("id"),
-            "Niche Name": m.get("name"),
-            "Target Search Keywords": m.get("keywords"),
-            "Mapped Account Profile": acc_name,
-            "Expected Commission Rate": m.get("commission_rate", "5% - 8%")
-        })
+    df_map = pd.DataFrame(mappings)
+    for col, def_val in [("id", "niche"), ("name", "New Niche"), ("keywords", "query1, query2"), ("mapped_account_id", profile_ids[0] if profile_ids else "fashion"), ("commission_rate", "6% - 9%")]:
+        if col not in df_map.columns:
+            df_map[col] = def_val
 
-    st.dataframe(pd.DataFrame(map_display), use_container_width=True)
+    df_map_view = df_map[["id", "name", "keywords", "mapped_account_id", "commission_rate"]]
+
+    edited_map_df = st.data_editor(
+        df_map_view,
+        column_config={
+            "id": st.column_config.TextColumn("Niche ID / Slug", required=True),
+            "name": st.column_config.TextColumn("Niche Display Name", required=True),
+            "keywords": st.column_config.TextColumn("Target Search Keywords (Comma-separated)", required=True),
+            "mapped_account_id": st.column_config.SelectboxColumn("Mapped Account Profile", options=profile_ids, required=True),
+            "commission_rate": st.column_config.TextColumn("Commission Rate (e.g. 7% - 10%)")
+        },
+        num_rows="dynamic",
+        use_container_width=True,
+        key="data_editor_niche_mapping"
+    )
+
+    col_map_save, col_map_hint = st.columns([1.5, 3])
+    with col_map_save:
+        if st.button("💾 Save Niche Mapping Table", use_container_width=True, key="btn_save_niche_map_table"):
+            st.session_state.orchestrator.bulk_save_niche_mappings(edited_map_df.to_dict("records"))
+            st.success("Niche mapping matrix saved successfully!")
+            st.rerun()
 
     st.markdown("---")
 
-    # Add New Niche & Map to Account Form
-    st.subheader("➕ Create New Niche & Map to Account")
+    # 2. Add New Niche & Map to Account Form
+    st.subheader("➕ Quick Add Niche & Route to Account")
     with st.form("form_add_niche_map"):
         c_m1, c_m2 = st.columns(2)
         with c_m1:
@@ -537,28 +734,52 @@ elif nav_selection == "🌐 E-Commerce Platforms":
     Configure your affiliate partnerships. AutoAffiliate AI supports direct tagging and aggregator deep-linking for **Amazon, Flipkart, Myntra, Nykaa, Ajio, Meesho, Croma**, and any custom e-commerce site.
     """)
 
-    # 1. Registered Platforms Table
-    st.subheader("🛍️ Active E-Commerce Networks")
+    # 1. IN-TABLE EDITABLE PLATFORMS REGISTRY
+    st.subheader("🛍️ Active E-Commerce Networks (In-Table Editable)")
+    st.markdown("<span class='table-hint'>✏️ Edit tracking tags, affiliate parameters, and domains directly in the table. Add any new store row at the bottom!</span>", unsafe_allow_html=True)
+
     platforms = st.session_state.orchestrator.scout.tagger.platforms
 
-    p_list = []
+    plat_rows = []
     for pk, pv in platforms.items():
-        p_list.append({
-            "Platform Key": pk,
-            "Network Name": pv.get("name"),
-            "Primary Domain": pv.get("domains", [""])[0],
-            "Affiliate Parameter": pv.get("param", "tag"),
-            "Current Tracking Tag": pv.get("id", "Global Default")
+        plat_rows.append({
+            "key": pk,
+            "name": pv.get("name", pk.capitalize()),
+            "domain": pv.get("domains", [""])[0],
+            "param": pv.get("param", "tag"),
+            "id": pv.get("id", "affiliate")
         })
-    st.dataframe(pd.DataFrame(p_list), use_container_width=True)
+
+    df_plat = pd.DataFrame(plat_rows)
+
+    edited_plat_df = st.data_editor(
+        df_plat,
+        column_config={
+            "key": st.column_config.TextColumn("Platform Key", required=True),
+            "name": st.column_config.TextColumn("Network Name", required=True),
+            "domain": st.column_config.TextColumn("Primary Domain (e.g. myntra.com)", required=True),
+            "param": st.column_config.TextColumn("Affiliate Parameter (e.g. tag, affid, utm_source)", required=True),
+            "id": st.column_config.TextColumn("Your Tracking Tag / ID", required=True)
+        },
+        num_rows="dynamic",
+        use_container_width=True,
+        key="data_editor_platforms"
+    )
+
+    col_plat_save, col_plat_hint = st.columns([1.5, 3])
+    with col_plat_save:
+        if st.button("💾 Save Platform Table Changes", use_container_width=True, key="btn_save_platforms_table"):
+            st.session_state.orchestrator.bulk_save_platforms(edited_plat_df.to_dict("records"))
+            st.success("E-commerce platforms saved successfully!")
+            st.rerun()
 
     st.markdown("---")
 
     col_plat1, col_plat2 = st.columns(2)
 
-    # 2. Add New E-Commerce Website Form
+    # 2. Add New Platform Form
     with col_plat1:
-        st.subheader("➕ Register Another Platform (e.g. Nykaa, Purplle)")
+        st.subheader("➕ Quick Register Store")
         with st.form("form_reg_platform"):
             np_name = st.text_input("Platform Name", placeholder="e.g. Nykaa, Bewakoof, Purplle")
             np_domain = st.text_input("Domain Name", placeholder="e.g. nykaa.com, purplle.com")
@@ -573,7 +794,7 @@ elif nav_selection == "🌐 E-Commerce Platforms":
                         param=np_param or "tag",
                         affiliate_id=np_id or "affiliate"
                     )
-                    st.success(f"Platform '{np_name}' registered successfully! Links from this site will now be auto-tagged.")
+                    st.success(f"Platform '{np_name}' registered successfully!")
                     st.rerun()
 
     # 3. Universal URL Importer & Test Scraper
@@ -619,25 +840,41 @@ elif nav_selection == "🤖 Autonomous Autopilot":
     all_profiles = st.session_state.orchestrator.get_channel_profiles()
     enabled_profiles = st.session_state.orchestrator.get_enabled_autopilot_profiles()
 
-    col_ap1, col_ap2 = st.columns([3, 1.2])
-    with col_ap1:
-        st.write("**Select Active Autopilot Channels (Each runs independently):**")
-        cb_cols = st.columns(max(len(all_profiles), 1))
-        for idx, prof in enumerate(all_profiles):
-            pid = prof["id"]
-            is_enabled = prof.get("enabled_for_autopilot", False)
-            with cb_cols[idx % len(cb_cols)]:
-                chk = st.checkbox(
-                    f"**{prof['name']}** - `[{prof.get('focus_niche', 'all').upper()}]`",
-                    value=is_enabled,
-                    key=f"ap_view_chk_{pid}"
-                )
-                if chk != is_enabled:
-                    st.session_state.orchestrator.set_profile_autopilot_enabled(pid, chk)
-                    st.rerun()
+    # 1. IN-TABLE EDITABLE AUTOPILOT ACTIVATION
+    st.subheader("📋 Channel Autopilot Activation Table (In-Table Editable)")
+    st.markdown("<span class='table-hint'>✏️ Toggle the checkbox for accounts you want active in the 24/7 autonomous loop, then click 'Save Autopilot Selection'.</span>", unsafe_allow_html=True)
 
-    with col_ap2:
-        st.markdown("<br>", unsafe_allow_html=True)
+    ap_rows = []
+    for p in all_profiles:
+        ap_rows.append({
+            "id": p["id"],
+            "name": p["name"],
+            "focus_niche": p.get("focus_niche", "all").upper(),
+            "enabled_for_autopilot": bool(p.get("enabled_for_autopilot", False))
+        })
+
+    df_ap = pd.DataFrame(ap_rows)
+    edited_ap_df = st.data_editor(
+        df_ap,
+        column_config={
+            "id": st.column_config.TextColumn("Account Key", disabled=True),
+            "name": st.column_config.TextColumn("Channel Account Name", disabled=True),
+            "focus_niche": st.column_config.TextColumn("Dedicated Niche", disabled=True),
+            "enabled_for_autopilot": st.column_config.CheckboxColumn("Run in 24/7 Autopilot", default=True)
+        },
+        use_container_width=True,
+        key="data_editor_autopilot_channels"
+    )
+
+    col_ap_btn1, col_ap_btn2, col_ap_btn3 = st.columns([1.5, 1.5, 1.5])
+    with col_ap_btn1:
+        if st.button("💾 Save Autopilot Selection", use_container_width=True, key="btn_save_ap_table"):
+            for row in edited_ap_df.to_dict("records"):
+                st.session_state.orchestrator.set_profile_autopilot_enabled(row["id"], bool(row["enabled_for_autopilot"]))
+            st.success("Autopilot preferences saved!")
+            st.rerun()
+
+    with col_ap_btn2:
         if daemon.is_running:
             if st.button("⏸️ PAUSE AUTOPILOT", use_container_width=True, key="ap_btn_stop"):
                 daemon.stop_background_loop()
@@ -647,6 +884,7 @@ elif nav_selection == "🤖 Autonomous Autopilot":
                 daemon.start_background_loop()
                 st.rerun()
 
+    with col_ap_btn3:
         if st.button("⚡ Run 1 Cycle Now (All Selected)", use_container_width=True, key="ap_btn_run_now"):
             with st.spinner("Executing independent cycles across selected accounts..."):
                 cycle_results = daemon.run_one_autonomous_cycle()
@@ -659,13 +897,19 @@ elif nav_selection == "🤖 Autonomous Autopilot":
     next_str = daemon.next_run_time.strftime("%I:%M %p") if daemon.next_run_time else "Calculated dynamically on launch"
     en_names = [p["name"] for p in enabled_profiles]
 
+    banner_bg = "#ecfdf5" if is_light else "#064e3b"
+    banner_border = "#6ee7b7" if is_light else "#059669"
+    banner_text = "#064e3b" if is_light else "#e2e8f0"
+    banner_badge_bg = "#a7f3d0" if is_light else "#047857"
+    banner_badge_text = "#065f46" if is_light else "#a7f3d0"
+
     st.markdown(f"""
-    <div style="background:#064e3b; border:1px solid #059669; border-radius:10px; padding:16px; margin: 16px 0;">
+    <div style="background:{banner_bg}; border:1px solid {banner_border}; border-radius:10px; padding:16px; margin: 16px 0; color:{banner_text};">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <strong style="color:#ffffff; font-size:1.1rem;">{'🟢 AUTOPILOT ENGINE RUNNING' if daemon.is_running else '⚪ AUTOPILOT ENGINE STANDBY'}</strong>
-            <span style="color:#a7f3d0; background:#047857; padding:4px 10px; border-radius:6px; font-weight:600; font-size:0.8rem;">🛡️ Anti-Spam Jitter Pacing Active</span>
+            <strong style="font-size:1.1rem;">{'🟢 AUTOPILOT ENGINE RUNNING' if daemon.is_running else '⚪ AUTOPILOT ENGINE STANDBY'}</strong>
+            <span style="color:{banner_badge_text}; background:{banner_badge_bg}; padding:4px 10px; border-radius:6px; font-weight:600; font-size:0.8rem;">🛡️ Anti-Spam Jitter Pacing Active</span>
         </div>
-        <div style="color:#e2e8f0; font-size:0.92rem; margin-top:8px; line-height:1.6;">
+        <div style="font-size:0.92rem; margin-top:8px; line-height:1.6;">
             • <b>Active Independent Accounts:</b> {', '.join(en_names) if en_names else 'None selected'}<br>
             • <b>Dynamic Timing:</b> No fixed schedule (static 12:30/18:30 removed). Next run dynamically picked between 90m to 210m with random jitter.<br>
             • <b>Humanoid Content:</b> 100% clean copy with ZERO emojis and ZERO special characters.<br>
@@ -745,8 +989,10 @@ elif nav_selection == "⚡ Live Product Sandbox":
         t_num = res.get("test_number", 1)
 
         st.divider()
-        st.markdown(f"### 🔍 Live Test Results — <span style='color:#38bdf8;'>[{p.get('platform')}] {p['title'][:50]}</span> (Test #{t_num})", unsafe_allow_html=True)
-        st.markdown("<span style='color:#34d399; font-weight:600;'>✓ 100% Humanoid Copy Verified: Zero emojis & Zero special characters</span>", unsafe_allow_html=True)
+        hl_color = "#0284c7" if is_light else "#38bdf8"
+        chk_color = "#15803d" if is_light else "#34d399"
+        st.markdown(f"### 🔍 Live Test Results — <span style='color:{hl_color};'>[{p.get('platform')}] {p['title'][:50]}</span> (Test #{t_num})", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:{chk_color}; font-weight:600;'>✓ 100% Humanoid Copy Verified: Zero emojis & Zero special characters</span>", unsafe_allow_html=True)
 
         r_img_col, r_info_col = st.columns([1.5, 2.5])
         with r_img_col:
@@ -794,40 +1040,77 @@ elif nav_selection == "⚡ Live Product Sandbox":
 # ==============================================================================
 elif nav_selection == "📱 Content & Media Library":
     st.subheader("📱 Content & Media Asset Deck")
-    posts = get_posts(limit=25)
-    if not posts:
-        st.info("No posts created yet. Go to 'Live Product Sandbox' to generate one instantly.")
-    else:
-        for post in posts:
-            with st.container():
-                cp_col1, cp_col2 = st.columns([1.5, 2.5])
-                with cp_col1:
-                    st.markdown(f"#### Post #{post['id']}")
-                    vp = post.get("video_path")
-                    if vp and os.path.exists(vp):
-                        st.video(vp)
-                    media = post.get("media_paths", [])
-                    if media and os.path.exists(media[0]):
-                        st.image(media[0], use_container_width=True)
 
-                    status_color = "#34d399" if post["status"] == "published" else "#f59e0b"
-                    st.markdown(f"**Status:** <span style='color:{status_color}; font-weight:bold;'>{post['status'].upper()}</span>", unsafe_allow_html=True)
-                    if post["status"] != "published":
-                        target_account = st.session_state.orchestrator.get_active_profile()
-                        if st.button(f"🚀 Approve & Publish", key=f"lib_pub_{post['id']}", use_container_width=True):
-                            with st.spinner("Publishing..."):
-                                res = st.session_state.orchestrator.marketer.publish_approved_post(post, channel_profile=target_account)
-                                st.success("Post successfully published!")
-                                st.rerun()
+    tab_lib1, tab_lib2 = st.tabs(["📋 In-Table Post Manager", "🗂️ Visual Cards & Media Player"])
 
-                with cp_col2:
-                    st.markdown(f"**Headline Hook:** {post.get('headline', '')}")
-                    with st.expander("📝 Full Caption & Hashtags", expanded=True):
-                        st.text_area("Caption", post.get("caption", ""), height=150, key=f"cap_lib_{post['id']}")
-                        st.caption(f"**Hashtags:** {post.get('hashtags', '')}")
-                    with st.expander("🎬 15-Second Reel Script"):
-                        st.code(post.get("reel_script", ""), language="markdown")
-                st.divider()
+    posts = get_posts(limit=30)
+
+    with tab_lib1:
+        st.markdown("<span class='table-hint'>✏️ Fast Bulk Management: Edit headline hooks and post statuses (draft, approved, published) directly in this table! Click 'Save Post Table Changes'.</span>", unsafe_allow_html=True)
+        if not posts:
+            st.info("No posts created yet. Go to 'Live Product Sandbox' to generate your first post.")
+        else:
+            df_posts = pd.DataFrame(posts)
+            for col, def_val in [("id", 1), ("headline", ""), ("platform", "instagram"), ("status", "draft"), ("created_at", "")]:
+                if col not in df_posts.columns:
+                    df_posts[col] = def_val
+
+            df_posts_view = df_posts[["id", "headline", "platform", "status", "created_at"]]
+
+            status_opts = ["draft", "approved", "published", "archived"]
+
+            edited_posts_df = st.data_editor(
+                df_posts_view,
+                column_config={
+                    "id": st.column_config.NumberColumn("Post ID", disabled=True),
+                    "headline": st.column_config.TextColumn("Headline Hook", required=True),
+                    "platform": st.column_config.SelectboxColumn("Target Platform", options=["instagram", "facebook", "telegram", "meta_all"]),
+                    "status": st.column_config.SelectboxColumn("Post Status", options=status_opts, required=True),
+                    "created_at": st.column_config.TextColumn("Created At", disabled=True)
+                },
+                use_container_width=True,
+                key="data_editor_posts"
+            )
+
+            if st.button("💾 Save Post Table Changes", key="btn_save_posts_table"):
+                bulk_update_posts(edited_posts_df.to_dict("records"))
+                st.success("Post updates saved successfully!")
+                st.rerun()
+
+    with tab_lib2:
+        if not posts:
+            st.info("No posts created yet.")
+        else:
+            for post in posts:
+                with st.container():
+                    cp_col1, cp_col2 = st.columns([1.5, 2.5])
+                    with cp_col1:
+                        st.markdown(f"#### Post #{post['id']}")
+                        vp = post.get("video_path")
+                        if vp and os.path.exists(vp):
+                            st.video(vp)
+                        media = post.get("media_paths", [])
+                        if media and os.path.exists(media[0]):
+                            st.image(media[0], use_container_width=True)
+
+                        status_color = "#15803d" if (is_light and post["status"] == "published") else ("#34d399" if post["status"] == "published" else "#f59e0b")
+                        st.markdown(f"**Status:** <span style='color:{status_color}; font-weight:bold;'>{post['status'].upper()}</span>", unsafe_allow_html=True)
+                        if post["status"] != "published":
+                            target_account = st.session_state.orchestrator.get_active_profile()
+                            if st.button(f"🚀 Approve & Publish", key=f"lib_pub_{post['id']}", use_container_width=True):
+                                with st.spinner("Publishing..."):
+                                    res = st.session_state.orchestrator.marketer.publish_approved_post(post, channel_profile=target_account)
+                                    st.success("Post successfully published!")
+                                    st.rerun()
+
+                    with cp_col2:
+                        st.markdown(f"**Headline Hook:** {post.get('headline', '')}")
+                        with st.expander("📝 Full Caption & Hashtags", expanded=True):
+                            st.text_area("Caption", post.get("caption", ""), height=150, key=f"cap_lib_{post['id']}")
+                            st.caption(f"**Hashtags:** {post.get('hashtags', '')}")
+                        with st.expander("🎬 15-Second Reel Script"):
+                            st.code(post.get("reel_script", ""), language="markdown")
+                    st.divider()
 
 
 # ==============================================================================
@@ -908,7 +1191,8 @@ elif nav_selection == "⚙️ Global Settings & Compliance":
             glob_cfg["app"]["daily_revenue_target_inr"] = float(g_target)
             st.session_state.orchestrator.set_daily_target(float(g_target))
 
-            with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "settings.yaml"), "w", encoding="utf-8") as f:
+            from core.orchestrator import CONFIG_PATH
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 yaml.safe_dump(glob_cfg, f, default_flow_style=False)
             st.success("Global settings saved successfully!")
             st.rerun()

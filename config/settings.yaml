@@ -77,6 +77,49 @@ channel_profiles:
   name: Mega Loot Deals (General)
   telegram_bot_token: ''
   telegram_channel_id: ''
+custom_affiliate_platforms:
+  ajio:
+    clean_params: []
+    domains:
+    - ajio.com
+    id: affiliate
+    name: Ajio
+    param: utm_source
+  amazon:
+    clean_params: []
+    domains:
+    - amazon.in
+    id: kkk
+    name: Amazon India
+    param: tag
+  flipkart:
+    clean_params: []
+    domains:
+    - flipkart.com
+    id: flipkart_aff
+    name: Flipkart
+    param: affid
+  meesho:
+    clean_params: []
+    domains:
+    - meesho.com
+    id: affiliate
+    name: Meesho
+    param: utm_campaign
+  myntra:
+    clean_params: []
+    domains:
+    - myntra.com
+    id: affiliate_partner
+    name: Myntra
+    param: utm_source
+  nykaa:
+    clean_params: []
+    domains:
+    - nykaa.com
+    id: affiliate
+    name: Nykaa
+    param: utm_source
 dynamic_schedule:
   anti_ban_mode: true
   human_jitter_sec_max: 90

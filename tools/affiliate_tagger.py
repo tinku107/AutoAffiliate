@@ -6,6 +6,7 @@ without code modifications. Supports direct query params and aggregator deep lin
 import re
 import urllib.parse
 import os
+import requests
 import yaml
 from typing import Dict, Any, Optional
 
@@ -16,6 +17,7 @@ class AffiliateTagger:
     def __init__(self, amazon_tag: str = "autoaffil-21", earnkaro_id: Optional[str] = None):
         self.amazon_tag = amazon_tag or "autoaffil-21"
         self.earnkaro_id = earnkaro_id
+        self._url_cache: Dict[str, str] = {}
 
         # Built-in and dynamically extensible platform registry
         self.platforms: Dict[str, Dict[str, Any]] = {
@@ -106,6 +108,36 @@ class AffiliateTagger:
         except Exception as e:
             print(f"Could not persist custom platform: {e}")
 
+    def cloak_url(self, raw_affiliate_url: str) -> str:
+        """
+        Cloaks/shortens affiliate links (specifically EarnKaro and deep tracking links)
+        so followers and social algorithms NEVER see raw 'earnkaro.com' tracking links.
+        Uses TinyURL's free instant API with memory caching.
+        """
+        if not raw_affiliate_url:
+            return ""
+
+        if raw_affiliate_url in self._url_cache:
+            return self._url_cache[raw_affiliate_url]
+
+        try:
+            api_url = f"https://tinyurl.com/api-create.php?url={urllib.parse.quote(raw_affiliate_url)}"
+            resp = requests.get(api_url, timeout=5)
+            if resp.status_code == 200 and resp.text.startswith("http"):
+                shortened = resp.text.strip()
+                self._url_cache[raw_affiliate_url] = shortened
+                return shortened
+        except Exception as e:
+            print(f"URL cloaking fallback note: {e}")
+
+        # If offline or TinyURL unreachable, never expose earnkaro.com directly!
+        if "earnkaro.com" in raw_affiliate_url:
+            m = re.search(r"link=([^&]+)", raw_affiliate_url)
+            clean_dest = urllib.parse.unquote(m.group(1)) if m else raw_affiliate_url
+            return clean_dest
+
+        return raw_affiliate_url
+
     def convert_url(self, raw_url: str, platform: Optional[str] = None) -> str:
         """Converts any URL into an affiliate link dynamically based on domain matching."""
         if not raw_url:
@@ -121,7 +153,10 @@ class AffiliateTagger:
         if self.earnkaro_id and not "amazon." in raw_url:
             clean_url = raw_url.split("?")[0]
             encoded = urllib.parse.quote(clean_url)
-            return f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
+            raw_ek = f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
+            # STRICT RULE: NEVER show earnkaro.com directly to followers!
+            # Automatically cloaks into clean short link
+            return self.cloak_url(raw_ek)
 
         # Match against registered platforms
         parsed = urllib.parse.urlparse(raw_url)
@@ -146,6 +181,30 @@ class AffiliateTagger:
 
         # Fallback default parameter
         return f"{raw_url}&tag={self.amazon_tag}" if "?" in raw_url else f"{raw_url}?tag={self.amazon_tag}"
+
+    def convert_url_details(self, raw_url: str, platform: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Returns both the public clean cloaked URL (shown to followers)
+        and the underlying raw tracking URL (for publisher verification).
+        """
+        if not raw_url:
+            return {"public_url": "", "raw_tracking_url": "", "is_cloaked": False}
+
+        if "amazon." in raw_url:
+            asin_match = re.search(r"/(?:dp|gp/product|d)/([A-Z0-9]{10})", raw_url)
+            if asin_match:
+                amz_url = f"https://www.amazon.in/dp/{asin_match.group(1)}?tag={self.amazon_tag}"
+                return {"public_url": amz_url, "raw_tracking_url": amz_url, "is_cloaked": False}
+
+        if self.earnkaro_id and not "amazon." in raw_url:
+            clean_url = raw_url.split("?")[0]
+            encoded = urllib.parse.quote(clean_url)
+            raw_ek = f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
+            cloaked = self.cloak_url(raw_ek)
+            return {"public_url": cloaked, "raw_tracking_url": raw_ek, "is_cloaked": True}
+
+        pub = self.convert_url(raw_url, platform)
+        return {"public_url": pub, "raw_tracking_url": pub, "is_cloaked": False}
 
     def get_disclosure_text(self) -> str:
         return "#ad #affiliate #commissionsearned #dealsindia"

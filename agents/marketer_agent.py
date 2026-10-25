@@ -121,11 +121,15 @@ class MarketerAgent:
         # 1. Instagram Publication
         ig_res = pub.publish_instagram_photo(image_url=image_path or "", caption=clean_cap)
 
-        # 2. Facebook Publication
-        fb_res = pub.publish_facebook_post(message=clean_cap, link=post.get("affiliate_url"))
+        # 2. Facebook Publication (Strictly Cloaked: Never show earnkaro.com directly)
+        fb_link = post.get("affiliate_url", "")
+        if "earnkaro.com" in fb_link:
+            from tools.affiliate_tagger import AffiliateTagger
+            fb_link = AffiliateTagger().cloak_url(fb_link)
+        fb_res = pub.publish_facebook_post(message=clean_cap, link=fb_link)
 
         # 3. Telegram Deals Broadcast (Clean humanoid text without emojis)
-        tg_text = f"Deal Alert: {clean_humanoid_text(post.get('headline', ''))}\n\nDirect link: {post.get('affiliate_url')}"
+        tg_text = f"Deal Alert: {clean_humanoid_text(post.get('headline', ''))}\n\nDirect link: {fb_link}"
         tg_res = pub.broadcast_telegram_deal(image_path=image_path, text=tg_text)
 
         # Update post in DB
@@ -247,6 +251,10 @@ class MarketerAgent:
         Sends a 100% humanoid, friendly message without emojis or special characters.
         """
         short_title = product_title.split("(")[0].split("-")[0].strip()[:35]
+        # Strict Rule: Never send earnkaro.com directly to users in DMs!
+        if "earnkaro.com" in affiliate_url:
+            from tools.affiliate_tagger import AffiliateTagger
+            affiliate_url = AffiliateTagger().cloak_url(affiliate_url)
         dm_message = clean_humanoid_text(
             f"Hello {user_handle}, thanks for reaching out. "
             f"Here is the direct purchase link for {short_title}: {affiliate_url} . "

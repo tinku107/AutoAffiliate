@@ -38,9 +38,11 @@ class ScoutAgent:
 
         processed_products = []
         for item in raw_items:
-            # Dynamic Affiliate Tagging
-            aff_url = self.tagger.convert_url(item["source_url"], platform=item.get("platform", "Amazon"))
-            item["affiliate_url"] = aff_url
+            # Dynamic Affiliate Tagging (Cloaked: Never show EarnKaro directly to followers)
+            url_meta = self.tagger.convert_url_details(item["source_url"], platform=item.get("platform", "Amazon"))
+            item["affiliate_url"] = url_meta["public_url"]
+            item["raw_affiliate_url"] = url_meta["raw_tracking_url"]
+            item["is_cloaked"] = url_meta["is_cloaked"]
             item["status"] = "scouted"
 
             # Dynamic Commission Calculation
@@ -74,7 +76,10 @@ class ScoutAgent:
             log_agent_action(self.name, "Failed to scrape product from URL", "failed")
             return None
 
-        item["affiliate_url"] = self.tagger.convert_url(item["source_url"], platform=item["platform"])
+        url_meta = self.tagger.convert_url_details(item["source_url"], platform=item["platform"])
+        item["affiliate_url"] = url_meta["public_url"]
+        item["raw_affiliate_url"] = url_meta["raw_tracking_url"]
+        item["is_cloaked"] = url_meta["is_cloaked"]
         comm_rate = item.get("commission_rate", 0.05)
         item["est_comm_per_sale"] = round(item["deal_price"] * comm_rate, 2)
         item["units_to_goal"] = max(1, int(target_profit / max(1.0, item["est_comm_per_sale"])))

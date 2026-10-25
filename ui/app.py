@@ -812,7 +812,14 @@ elif nav_selection == "🌐 E-Commerce Platforms":
                     if item:
                         st.success(f"✓ Extracted from {item.get('platform')}: {item.get('title')[:45]}!")
                         st.write(f"• **Deal Price:** ₹{int(item.get('deal_price', 0)):,} (MRP: ₹{int(item.get('original_price', 0)):,})")
-                        st.write(f"• **Auto-Tagged Link:** `{item.get('affiliate_url')}`")
+                        aff_link = item.get('affiliate_url', '')
+                        if 'tinyurl.com' in aff_link or item.get('is_cloaked'):
+                            st.write(f"• **Customer Deal Link (Cloaked):** `{aff_link}` 🛡️ *(EarnKaro hidden from followers)*")
+                            if item.get("raw_affiliate_url"):
+                                with st.expander("🔍 View Underlying EarnKaro Tracking URL (Publisher Verification)"):
+                                    st.code(item['raw_affiliate_url'])
+                        else:
+                            st.write(f"• **Auto-Tagged Link:** `{aff_link}`")
                         if item.get("image_url"):
                             st.image(item["image_url"], width=200)
 
@@ -1018,7 +1025,14 @@ elif nav_selection == "⚡ Live Product Sandbox":
             st.metric("Est. Commission", f"₹{p.get('est_comm_per_sale', 0)} / sale", f"~{p.get('units_to_goal', 1)} sales to hit ₹{current_target:,.0f}")
 
         with r_info_col:
-            st.markdown(f"**Live Affiliate URL:** `{p['affiliate_url']}`")
+            aff_link = p.get('affiliate_url', '')
+            if 'tinyurl.com' in aff_link or p.get('is_cloaked') or 'earnkaro.com' in p.get('raw_affiliate_url', ''):
+                st.markdown(f"🔗 **Customer Deal Link (Cloaked):** `{aff_link}` 🛡️ *(EarnKaro hidden from followers)*")
+                if p.get("raw_affiliate_url"):
+                    with st.expander("🔍 View Underlying EarnKaro Tracking URL (Publisher Verification)"):
+                        st.code(p['raw_affiliate_url'])
+            else:
+                st.markdown(f"🔗 **Live Affiliate URL:** `{aff_link}`")
             st.markdown(f"**Headline Hook:** *{pst['headline']}*")
 
             with st.expander("📝 View Humanoid Caption (Zero Icons/Emojis)", expanded=True):
@@ -1314,6 +1328,7 @@ elif nav_selection == "🏷️ Page Setup & Launch Guide":
         - **Stores Covered:** Flipkart, Myntra, Ajio, Nykaa, Mamaearth, Croma, Samsung, Tata 1mg, and 150+ brands.
         - **Approval:** Instant with mobile OTP (zero waiting period and zero minimum follower requirement).
         - **Payout Threshold:** Minimum **₹10** directly transferred to your Indian bank account via NEFT.
+        - **🛡️ Automatic Cloaking:** **Followers NEVER see `earnkaro.com` directly.** AutoAffiliate automatically cloaks and shortens all EarnKaro links into clean, high-converting deal links so your posts and DMs look 100% professional and authentic.
 
         #### 2. Amazon Associates India
         - **Website:** [affiliate-program.amazon.in](https://affiliate-program.amazon.in)

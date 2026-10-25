@@ -245,25 +245,42 @@ class MarketerAgent:
         """Backwards compatible alias for organic audience growth."""
         return self.grow_audience_and_engage(niche=niche, count=count)
 
-    def handle_incoming_comment_lead(self, user_handle: str, affiliate_url: str, product_title: str = "this item") -> Dict[str, Any]:
+    def handle_incoming_comment_lead(
+        self,
+        user_handle: Optional[str] = None,
+        affiliate_url: Optional[str] = None,
+        product_title: str = "this item",
+        post: Optional[Dict[str, Any]] = None,
+        commenter_username: Optional[str] = None,
+        comment_text: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Automates the 'Comment LINK' DM response funnel.
         Sends a 100% humanoid, friendly message without emojis or special characters.
         """
-        short_title = product_title.split("(")[0].split("-")[0].strip()[:35]
+        handle = user_handle or commenter_username or "friend"
+        if post and isinstance(post, dict):
+            link = affiliate_url or post.get("affiliate_url") or post.get("raw_affiliate_url", "")
+            title = product_title if product_title != "this item" else (post.get("headline") or post.get("title") or "this item")
+        else:
+            link = affiliate_url or ""
+            title = product_title
+
+        short_title = title.split("(")[0].split("-")[0].strip()[:35]
         # Strict Rule: Never send earnkaro.com directly to users in DMs!
-        if "earnkaro.com" in affiliate_url:
+        if "earnkaro.com" in link:
             from tools.affiliate_tagger import AffiliateTagger
-            affiliate_url = AffiliateTagger().cloak_url(affiliate_url)
+            link = AffiliateTagger().cloak_url(link)
+
         dm_message = clean_humanoid_text(
-            f"Hello {user_handle}, thanks for reaching out. "
-            f"Here is the direct purchase link for {short_title}: {affiliate_url} . "
+            f"Hello {handle}, thanks for reaching out. "
+            f"Here is the direct purchase link for {short_title}: {link} . "
             f"Please check it out before the current discount ends. "
             f"Let me know if you need any other recommendations or have sizing questions."
         )
 
         task = {
-            "target_account": user_handle,
+            "target_account": handle,
             "target_post_url": "Direct Message Funnel",
             "action_type": "dm_reply",
             "content": dm_message,
@@ -272,6 +289,7 @@ class MarketerAgent:
         task_id = save_engagement_task(task)
         update_engagement_task(task_id, "executed")
 
-        log_agent_action(self.name, f"Humanoid Auto-DM sent to lead {user_handle}", "completed")
-        return {"task_id": task_id, "recipient": user_handle, "dm_message": dm_message}
+        log_agent_action(self.name, f"Humanoid Auto-DM sent to lead {handle}", "completed")
+        return {"task_id": task_id, "recipient": handle, "dm_message": dm_message}
+
 

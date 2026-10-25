@@ -42,6 +42,7 @@ class CreativeAgent:
         self.image_gen = ImageGenerator()
         self.video_gen = VideoGenerator()
         self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY", "")
+        self.elena_avatar_path = self.image_gen._resolve_avatar_path({"id": "elenas_world"}) or os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "assets", "elena_avatar.jpg")
 
     def generate_content_for_product(self, product: Dict[str, Any], post_type: str = "carousel", channel_niche: Optional[str] = None, channel_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Generates authentic humanoid copy, reel script, and visual assets without icons or special characters."""

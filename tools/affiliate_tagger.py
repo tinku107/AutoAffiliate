@@ -14,9 +14,9 @@ CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config",
 
 
 class AffiliateTagger:
-    def __init__(self, amazon_tag: str = "autoaffil-21", earnkaro_id: Optional[str] = None):
+    def __init__(self, amazon_tag: str = "autoaffil-21", earnkaro_id: Optional[str] = None, earnkaro_api_key: Optional[str] = None):
         self.amazon_tag = amazon_tag or "autoaffil-21"
-        self.earnkaro_id = earnkaro_id
+        self.earnkaro_id = earnkaro_id or earnkaro_api_key
         self._url_cache: Dict[str, str] = {}
 
         # Built-in and dynamically extensible platform registry
@@ -181,6 +181,8 @@ class AffiliateTagger:
 
         # Fallback default parameter
         return f"{raw_url}&tag={self.amazon_tag}" if "?" in raw_url else f"{raw_url}?tag={self.amazon_tag}"
+
+    tag_url = convert_url
 
     def convert_url_details(self, raw_url: str, platform: Optional[str] = None) -> Dict[str, Any]:
         """

@@ -18,6 +18,8 @@ def get_db_connection() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     return conn
 
+get_db = get_db_connection
+
 
 def init_db():
     """Initializes all necessary tables."""
@@ -183,11 +185,11 @@ def update_product_status(product_id: int, status: str):
 
 
 def discard_product_in_db(product_id: str):
-    """Marks a product as permanently discarded and cleans up any unapproved drafts."""
+    """Marks a product as permanently discarded and cleans up any unapproved drafts/posts."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("UPDATE products SET status = 'discarded' WHERE product_id = ?", (product_id,))
-    cursor.execute("DELETE FROM posts WHERE product_id IN (SELECT id FROM products WHERE product_id = ?) AND status = 'draft'", (product_id,))
+    cursor.execute("DELETE FROM posts WHERE product_id IN (SELECT id FROM products WHERE product_id = ?) AND status != 'published'", (product_id,))
     conn.commit()
     conn.close()
 

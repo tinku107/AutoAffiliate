@@ -22,9 +22,8 @@ from datetime import datetime, date
 import pandas as pd
 
 # Add project root to sys.path
-import importlib
-import core.orchestrator
-importlib.reload(core.orchestrator)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from core.orchestrator import AgentOrchestrator
 from core.auto_daemon import get_auto_daemon
 from core.db import (

@@ -1534,7 +1534,7 @@ elif nav_selection == "⚙️ Global Settings & Compliance":
         c_gs1, c_gs2 = st.columns(2)
         with c_gs1:
             g_target = st.number_input("Daily Revenue Target (INR)", min_value=100.0, max_value=100000.0, value=float(st.session_state.orchestrator.daily_target_inr), step=100.0)
-            g_tag = st.text_input("Global Amazon Associate Tag", value=glob_cfg.get("affiliate", {}).get("amazon_associate_tag", "autoaffil-21"))
+            g_tag = st.text_input("Global Amazon Associate Tag", value=glob_cfg.get("affiliate", {}).get("amazon_associate_tag", "tinkukrishnan-21"))
         with c_gs2:
             g_earnkaro = st.text_input("EarnKaro API Key / Publisher ID", value=glob_cfg.get("affiliate", {}).get("earnkaro_api_key", ""), placeholder="For Myntra, Nykaa, Ajio 150+ brands")
             g_disc = st.text_input("Default Legal Disclosure (Humanoid, Zero Emojis)", value=glob_cfg.get("affiliate", {}).get("default_disclosure_text", "Disclosure: This post contains affiliate links. As an associate I earn from qualifying purchases."))

@@ -32,7 +32,7 @@ class AgentOrchestrator:
         self.config = self._load_config()
         self.daily_target_inr = float(self.config.get("app", {}).get("daily_revenue_target_inr", 500.0))
 
-        aff_tag = self.config.get("affiliate", {}).get("amazon_associate_tag", "autoaffil-21")
+        aff_tag = self.config.get("affiliate", {}).get("amazon_associate_tag", "tinkukrishnan-21")
         earnkaro_id = self.config.get("affiliate", {}).get("earnkaro_api_key", "")
         gemini_key = self.config.get("ai", {}).get("gemini_api_key", "")
 

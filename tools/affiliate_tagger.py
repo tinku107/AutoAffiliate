@@ -14,8 +14,8 @@ CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config",
 
 
 class AffiliateTagger:
-    def __init__(self, amazon_tag: str = "autoaffil-21", earnkaro_id: Optional[str] = None, earnkaro_api_key: Optional[str] = None):
-        self.amazon_tag = amazon_tag or "autoaffil-21"
+    def __init__(self, amazon_tag: str = "tinkukrishnan-21", earnkaro_id: Optional[str] = None, earnkaro_api_key: Optional[str] = None):
+        self.amazon_tag = amazon_tag or "tinkukrishnan-21"
         self.earnkaro_id = earnkaro_id or earnkaro_api_key
         self._url_cache: Dict[str, str] = {}
 

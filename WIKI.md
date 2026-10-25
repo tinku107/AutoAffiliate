@@ -108,7 +108,7 @@ AutoAffiliate AI eliminates hardcoded dictionaries. All products, prices, discou
 ### Supported Platforms:
 1. **Amazon India**:
    - Scrapes live bestsellers and search results.
-   - Automatically tags URLs with your Amazon Associate tag (e.g. `autoaffil-21`).
+   - Automatically tags URLs with your official Amazon Associate tag (`tinkukrishnan-21`).
 2. **Flipkart**:
    - Direct live deal scraping with discount extraction.
 3. **EarnKaro Master Aggregator (150+ Indian Stores)**:

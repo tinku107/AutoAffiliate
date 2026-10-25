@@ -10,7 +10,7 @@ from core.db import save_product, log_agent_action
 
 
 class ScoutAgent:
-    def __init__(self, amazon_tag: str = "autoaffil-21", earnkaro_id: Optional[str] = None):
+    def __init__(self, amazon_tag: str = "tinkukrishnan-21", earnkaro_id: Optional[str] = None):
         self.name = "Scout (Product Hunter)"
         self.scraper = ProductScraper()
         self.tagger = AffiliateTagger(amazon_tag=amazon_tag, earnkaro_id=earnkaro_id)

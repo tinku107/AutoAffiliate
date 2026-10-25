@@ -1,6 +1,6 @@
 active_profile_id: elenas_world
 affiliate:
-  amazon_associate_tag: autoaffil-21
+  amazon_associate_tag: tinkukrishnan-21
   default_disclosure_text: 'Disclosure: This post contains affiliate links. As an
     associate I earn from qualifying purchases.'
   earnkaro_api_key: '5736594'
@@ -89,7 +89,7 @@ custom_affiliate_platforms:
     clean_params: []
     domains:
     - amazon.in
-    id: kkk
+    id: tinkukrishnan-21
     name: Amazon India
     param: tag
   flipkart:

@@ -24,7 +24,7 @@ channel_profiles:
   facebook_page_id: '1484650751391885'
   focus_niche: ladies_fashion_beauty
   id: elenas_world
-  instagram_username: '@elenasworld.official'
+  instagram_username: '@affiliatem262'
   meta_access_token: EAAZAVLsZBRYuYBS8b2U0ZAvBtXNDGRnTFwQSYxWyhlCgxXULfXzxZAVr7wdPgaowNDiZAiFuXVZB1rapkh8on3kBFYFHq3NyoSqaemy0WeXnNWtKurLZBmXZAKkR4NJdTHVCchPBfH24cLaIcuMUtLrooris7pOXWxzxGgLZBZAezsLkRZC2uGmKZB3Kk4nlON3wapH4KEgVDtkZAIJuEbWuC0ZB3RedM83uJuj1JnEhGd7578KKIZD
   name: Elena's World (Ladies Fashion & Beauty)
   telegram_bot_token: ''
@@ -32,6 +32,7 @@ channel_profiles:
   meta_user_token: EAAZAVLsZBRYuYBS5kiAX2ByNgvbdHxDaR5aIJepnZBmlDL3FZBiJy6TM1bO9Wbb9GfgkVIwqkqNFhORddAVurrnr7DFOqESi16cUxGYArxjxRg5rBc6z92FQ8F8JNQnz1uzhZAmR1ANYJR1jnzJ2DPoF9CtykUo9roPq5tjcAgJq9ZADzHGxkMLKQJjR9Nw8hZAmbcmwYGsMcp2juvLobqg78pUZCVzQSHLzOWXULA1QXyZCOBER7rdZC36MdBnVBgZCSaAS2CzQhueKzYJ1DFwavgG7yZA3
   token_expires_at: '2026-12-24T18:35:54Z'
   token_expires_epoch: 1798137354
+  instagram_url: https://www.instagram.com/affiliatem262/
 - custom_affiliate_tag: ''
   description: 'Niche focus: Exclusively Ladies Dresses, Kurtas, Sarees, Handbags
     and Beauty'

@@ -64,10 +64,12 @@ class ImageGenerator:
             if os.path.exists(rel):
                 return rel
 
-        # Default Elena avatar
-        default_elena = os.path.join(base_dir, "data", "assets", "elena_avatar.jpg")
-        if os.path.exists(default_elena):
-            return default_elena
+        # Default Elena avatar only for elenas_world or unspecified channel
+        prof_id = (channel_profile or {}).get("id", "")
+        if not channel_profile or prof_id in ["elenas_world", "fashion"]:
+            default_elena = os.path.join(base_dir, "data", "assets", "elena_avatar.jpg")
+            if os.path.exists(default_elena):
+                return default_elena
 
         return None
 
@@ -158,9 +160,9 @@ class ImageGenerator:
 
     def generate_avatar_hero_slide(self, product: Dict[str, Any], avatar_path: str, total_slides: int = 1, channel_profile: Optional[Dict[str, Any]] = None) -> str:
         """
-        Slide 1: Dedicated Brand Ambassador Hero Slide.
-        Features Elena as the personal curator & model showcasing the dress/saree/ornament/watch
-        alongside the scraped store product card.
+        Slide 1: High-Converting Full-Width Real Product Hero Slide.
+        Showcases 100% authentic scraped store photo in high resolution, with Elena featured
+        as a circular brand ambassador watermark badge in the header corner.
         """
         width, height = (1080, 1080)
         img, draw = self._draw_base_slide(width, height)
@@ -177,89 +179,89 @@ class ImageGenerator:
         reviews = product.get("reviews_count", 2400)
         pid = product.get("product_id", "prod")
 
-        # 1. Header Bar
+        # 1. Header Bar with Elena Circular Avatar Badge
         header_h = 105
         draw.rectangle([(0, 0), (width, header_h)], fill=(12, 15, 23))
         draw.line([(0, header_h), (width, header_h)], fill=(245, 158, 11), width=4)
-        draw.text((width // 2, 42), f"{brand_name} • CURATED STYLE PICK", fill=(245, 158, 11), anchor="mm", font=self._get_font(34, bold=True))
-        draw.text((width // 2, 78), "VERIFIED HIGH-VALUE FASHION FIND", fill=(148, 163, 184), anchor="mm", font=self._get_font(20, bold=False))
 
-        # 2. Main Dual Stage (Left: Avatar, Right: Scraped Product Card)
-        card_y = 125
-        card_h = 580
-        card_w = 465
-
-        # Left Card: Elena Avatar
-        left_x = 55
-        draw.rounded_rectangle([(left_x - 3, card_y - 3), (left_x + card_w + 3, card_y + card_h + 3)], radius=24, fill=(245, 158, 11))
-
-        if os.path.exists(avatar_path):
+        has_avatar = avatar_path and os.path.exists(avatar_path)
+        text_start_x = 60
+        if has_avatar:
             try:
-                av_raw = Image.open(avatar_path).convert("RGB")
-                target_aspect = card_w / card_h
-                raw_aspect = av_raw.width / av_raw.height
-                if raw_aspect > target_aspect:
-                    new_w = int(av_raw.height * target_aspect)
-                    offset = (av_raw.width - new_w) // 2
-                    av_crop = av_raw.crop((offset, 0, offset + new_w, av_raw.height))
-                else:
-                    new_h = int(av_raw.width / target_aspect)
-                    offset = (av_raw.height - new_h) // 2
-                    av_crop = av_raw.crop((0, offset, av_raw.width, offset + new_h))
-                av_resized = av_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
-                
-                mask = Image.new("L", (card_w, card_h), 0)
-                ImageDraw.Draw(mask).rounded_rectangle([(0, 0), (card_w, card_h)], radius=22, fill=255)
-                img.paste(av_resized, (left_x, card_y), mask)
+                av_size = 78
+                av_raw = Image.open(avatar_path).convert("RGBA").resize((av_size, av_size), Image.Resampling.LANCZOS)
+                av_mask = Image.new("L", (av_size, av_size), 0)
+                ImageDraw.Draw(av_mask).ellipse((0, 0, av_size, av_size), fill=255)
+                av_x, av_y = 60, 13
+                # Gold circular ring
+                draw.ellipse((av_x - 3, av_y - 3, av_x + av_size + 3, av_y + av_size + 3), fill=(245, 158, 11))
+                img.paste(av_raw, (av_x, av_y), av_mask)
+                text_start_x = av_x + av_size + 24
             except Exception as e:
                 print(f"Avatar load note: {e}")
 
-        # Pill on Elena's card
-        draw.rounded_rectangle([(left_x + 15, card_y + 15), (left_x + 220, card_y + 60)], radius=14, fill=(15, 23, 42))
-        draw.text((left_x + 117, card_y + 37), "Styled by Elena", fill=(255, 255, 255), anchor="mm", font=self._get_font(22, bold=True))
+        # Brand & Verification Header Text
+        draw.text((text_start_x, 40), f"{brand_name} • CURATED STYLE PICK", fill=(245, 158, 11), anchor="lm", font=self._get_font(28, bold=True))
+        draw.text((text_start_x, 74), "VERIFIED HIGH-VALUE FIND • 100% AUTHENTIC", fill=(148, 163, 184), anchor="lm", font=self._get_font(18, bold=False))
 
-        # Right Card: Scraped Product Card
-        right_x = width - card_w - 55
-        draw.rounded_rectangle([(right_x - 3, card_y - 3), (right_x + card_w + 3, card_y + card_h + 3)], radius=24, fill=(51, 65, 85))
-        draw.rounded_rectangle([(right_x, card_y), (right_x + card_w, card_y + card_h)], radius=22, fill=(255, 255, 255))
+        # Slide indicator pill on right
+        draw.rounded_rectangle([(width - 250, 26), (width - 60, 78)], radius=14, fill=(30, 41, 59))
+        draw.text((width - 155, 52), f"Slide 1 of {total_slides}", fill=(255, 255, 255), anchor="mm", font=self._get_font(20, bold=True))
 
-        # Fetch scraped product image
+        # 2. Main Full-Width Scraped Product Card
+        card_x = 60
+        card_y = 125
+        card_w = 960
+        card_h = 670
+
+        draw.rounded_rectangle([(card_x - 4, card_y - 4), (card_x + card_w + 4, card_y + card_h + 4)], radius=24, fill=(45, 55, 72))
+        draw.rounded_rectangle([(card_x, card_y), (card_x + card_w, card_y + card_h)], radius=20, fill=(255, 255, 255))
+
+        # Download & display authentic scraped product photo
         primary_img_url = product.get("image_url", "")
         if not primary_img_url and product.get("image_urls"):
             primary_img_url = product.get("image_urls")[0]
 
         prod_img = self._fetch_image(primary_img_url)
         if prod_img:
-            prod_img.thumbnail((card_w - 30, card_h - 40), Image.Resampling.LANCZOS)
-            px = right_x + (card_w - prod_img.width) // 2
+            prod_img.thumbnail((card_w - 40, card_h - 40), Image.Resampling.LANCZOS)
+            px = card_x + (card_w - prod_img.width) // 2
             py = card_y + (card_h - prod_img.height) // 2
             img.paste(prod_img, (px, py))
 
-        # Product Discount Badge
+        # Badges on the scraped photo
+        # Top-Left: "REAL STORE PICTURE" + Curator Tag (dynamically sized)
+        curator_tag = "CURATED BY ELENA" if "ELENA" in brand_name else f"CURATED BY {brand_name}"
+        curator_badge_text = f"REAL STORE PICTURE • {curator_tag}"
+        badge_font = self._get_font(14, bold=True)
+        b_bbox = badge_font.getbbox(curator_badge_text)
+        b_text_w = b_bbox[2] - b_bbox[0]
+        badge_w = b_text_w + 36
+        draw.rounded_rectangle([(card_x + 20, card_y + 20), (card_x + 20 + badge_w, card_y + 68)], radius=12, fill=(15, 23, 42))
+        draw.text((card_x + 20 + badge_w // 2, card_y + 44), curator_badge_text, fill=(245, 158, 11), anchor="mm", font=badge_font)
+
+        # Top-Right: Discount Badge
         if discount > 0:
-            draw.rounded_rectangle([(right_x + card_w - 210, card_y + 15), (right_x + card_w - 15, card_y + 65)], radius=14, fill=(220, 38, 38))
-            draw.text((right_x + card_w - 112, card_y + 40), f"FLAT {discount}% OFF", fill=(255, 255, 255), anchor="mm", font=self._get_font(22, bold=True))
+            draw.rounded_rectangle([(card_x + card_w - 210, card_y + 20), (card_x + card_w - 20, card_y + 68)], radius=12, fill=(220, 38, 38))
+            draw.text((card_x + card_w - 115, card_y + 44), f"FLAT {discount}% OFF", fill=(255, 255, 255), anchor="mm", font=self._get_font(20, bold=True))
 
-        # Scraped store label
-        draw.rounded_rectangle([(right_x + 15, card_y + card_h - 55), (right_x + 225, card_y + card_h - 15)], radius=12, fill=(15, 23, 42))
-        draw.text((right_x + 120, card_y + card_h - 35), "Real Store Picture", fill=(245, 158, 11), anchor="mm", font=self._get_font(18, bold=True))
+        # Bottom-Left on Card: Rating Badge (dynamically sized)
+        rating_badge_text = f"Rating: {rating} / 5.0  •  {reviews:,}+ Orders"
+        r_font = self._get_font(17, bold=True)
+        r_bbox = r_font.getbbox(rating_badge_text)
+        r_text_w = r_bbox[2] - r_bbox[0]
+        r_badge_w = r_text_w + 36
+        draw.rounded_rectangle([(card_x + 20, card_y + card_h - 60), (card_x + 20 + r_badge_w, card_y + card_h - 16)], radius=12, fill=(15, 23, 42))
+        draw.text((card_x + 20 + r_badge_w // 2, card_y + card_h - 38), rating_badge_text, fill=(251, 191, 36), anchor="mm", font=r_font)
 
-        # 3. Product Details Section
-        title_y = card_y + card_h + 32
-        draw.text((width // 2, title_y), short_title, fill=(255, 255, 255), anchor="mm", font=self._get_font(34, bold=True))
-
-        rating_y = title_y + 42
-        rating_text = f"Rating: {rating} / 5.0  •  {reviews:,}+ Verified Orders"
-        draw.text((width // 2, rating_y), rating_text, fill=(251, 191, 36), anchor="mm", font=self._get_font(24, bold=False))
-
-        # 4. Price Block
-        price_y = rating_y + 54
+        # 3. Product Info & Pricing Bar Below Card
+        info_y = card_y + card_h + 30
         deal_str = f"Deal: ₹{deal_price:,}"
         mrp_str = f"MRP: ₹{orig_price:,}" if orig_price > deal_price else ""
         save_str = f"Save ₹{orig_price - deal_price:,} (Flat {discount}% OFF)" if (orig_price > deal_price and discount > 0) else ""
 
-        deal_font = self._get_font(40, bold=True)
-        mrp_font = self._get_font(28, bold=False)
+        deal_font = self._get_font(38, bold=True)
+        mrp_font = self._get_font(26, bold=False)
         save_font = self._get_font(24, bold=True)
 
         if mrp_str and save_str:
@@ -278,26 +280,29 @@ class ImageGenerator:
             mrp_cx = start_x + deal_w + gap + mrp_w // 2
             save_cx = start_x + deal_w + gap + mrp_w + gap + save_w // 2
 
-            draw.text((deal_cx, price_y), deal_str, fill=(16, 185, 129), anchor="mm", font=deal_font)
-            draw.text((mrp_cx, price_y), mrp_str, fill=(156, 163, 175), anchor="mm", font=mrp_font)
-            draw.line([(mrp_cx - mrp_w // 2 - 4, price_y), (mrp_cx + mrp_w // 2 + 4, price_y)], fill=(239, 68, 68), width=3)
-            draw.text((save_cx, price_y), save_str, fill=(245, 158, 11), anchor="mm", font=save_font)
+            draw.text((deal_cx, info_y), deal_str, fill=(16, 185, 129), anchor="mm", font=deal_font)
+            draw.text((mrp_cx, info_y), mrp_str, fill=(156, 163, 175), anchor="mm", font=mrp_font)
+            draw.line([(mrp_cx - mrp_w // 2 - 4, info_y), (mrp_cx + mrp_w // 2 + 4, info_y)], fill=(239, 68, 68), width=3)
+            draw.text((save_cx, info_y), save_str, fill=(245, 158, 11), anchor="mm", font=save_font)
         elif mrp_str:
-            draw.text((width // 2 - 120, price_y), deal_str, fill=(16, 185, 129), anchor="mm", font=deal_font)
-            draw.text((width // 2 + 130, price_y), mrp_str, fill=(156, 163, 175), anchor="mm", font=mrp_font)
-            draw.line([(width // 2 + 60, price_y), (width // 2 + 200, price_y)], fill=(239, 68, 68), width=3)
+            draw.text((width // 2 - 120, info_y), deal_str, fill=(16, 185, 129), anchor="mm", font=deal_font)
+            draw.text((width // 2 + 130, info_y), mrp_str, fill=(156, 163, 175), anchor="mm", font=mrp_font)
+            draw.line([(width // 2 + 60, info_y), (width // 2 + 200, info_y)], fill=(239, 68, 68), width=3)
         else:
-            draw.text((width // 2, price_y), deal_str, fill=(16, 185, 129), anchor="mm", font=deal_font)
+            draw.text((width // 2, info_y), deal_str, fill=(16, 185, 129), anchor="mm", font=deal_font)
 
-        # 5. Bottom Navigation Footer
-        footer_y = height - 115
+        title_y = info_y + 44
+        draw.text((width // 2, title_y), short_title, fill=(203, 213, 225), anchor="mm", font=self._get_font(24, bold=False))
+
+        # 4. Bottom Navigation Footer
+        footer_y = height - 110
         draw.rectangle([(0, footer_y), (width, height)], fill=(20, 27, 41))
         draw.line([(0, footer_y), (width, footer_y)], fill=(51, 65, 85), width=2)
         if total_slides > 1:
-            draw.text((width // 2, footer_y + 40), f"SWIPE TO SEE ALL {total_slides} REAL STORE PHOTOS & ANGLES >>", fill=(255, 255, 255), anchor="mm", font=self._get_font(26, bold=True))
+            draw.text((width // 2, footer_y + 38), f"SWIPE TO SEE ALL {total_slides} REAL STORE PHOTOS & ANGLES >>", fill=(255, 255, 255), anchor="mm", font=self._get_font(24, bold=True))
         else:
-            draw.text((width // 2, footer_y + 40), "LIMITED TIME EXCLUSIVE DEAL >>", fill=(255, 255, 255), anchor="mm", font=self._get_font(26, bold=True))
-        draw.text((width // 2, footer_y + 80), "Comment 'LINK' below and I'll DM you the verified deal link!", fill=(245, 158, 11), anchor="mm", font=self._get_font(21, bold=False))
+            draw.text((width // 2, footer_y + 38), "LIMITED TIME EXCLUSIVE DEAL >>", fill=(255, 255, 255), anchor="mm", font=self._get_font(24, bold=True))
+        draw.text((width // 2, footer_y + 75), "Comment 'LINK' below and I'll send you the verified purchase link!", fill=(245, 158, 11), anchor="mm", font=self._get_font(20, bold=False))
 
         filename = f"post_{pid}_slide_1_avatar.jpg"
         filepath = os.path.join(GENERATED_IMG_DIR, filename)

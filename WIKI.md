@@ -143,58 +143,37 @@ To establish authentic brand identity and prevent posts from looking like generi
 
 
 ```
-
 +-------------------------------------------------------------+
-
-|              ELENA'S WORLD • CURATED STYLE PICK             |
-
-|              VERIFIED HIGH-VALUE FASHION FIND               |
-
-+------------------------------+------------------------------+
-
-| [ LEFT CARD: ELENA AVATAR ]  | [ RIGHT CARD: STORE ITEM ]   |
-
-|                              |                              |
-
-|   (Permanent Indian Model    |   (Real Scraped Store Photo  |
-
-|    wearing saree/ethnic)     |    from Amazon/Flipkart)     |
-
-|                              |                              |
-
-|   [Styled by Elena]          |   [FLAT 75% OFF]             |
-
-|   (Gold Framing)             |   [Real Store Picture]       |
-
-+------------------------------+------------------------------+
-
+| (O) ELENA'S WORLD • CURATED STYLE PICK        [Slide 1 of 5]|
+|     VERIFIED HIGH-VALUE FIND • 100% AUTHENTIC               |
++-------------------------------------------------------------+
+| [REAL STORE PICTURE • CURATED BY ELENA]      [FLAT 75% OFF] |
+|                                                             |
+|                                                             |
+|           [ FULL-WIDTH REAL SCRAPED PRODUCT PHOTO ]         |
+|           (Genuine Amazon/Flipkart/Myntra Store Image       |
+|            in high resolution - True Colors & Fabric)       |
+|                                                             |
+| [Rating: 4.7 / 5.0 • 3,200+ Orders]                         |
++-------------------------------------------------------------+
+|   Deal: Rs 1,499   MRP: Rs 5,999   Save Rs 4,500 (75% OFF)  |
 |          Pure Silk Kanjivaram Traditional Zari Saree        |
-
-|        Rating: 4.7 / 5.0 • 850+ Verified Customer Orders     |
-
-|         Deal Price: Rs 1,499 | MRP: Rs 5,999 (Save Rs 4,500)|
-
 +-------------------------------------------------------------+
-
-|    SWIPE TO SEE ALL REAL PHOTOS & ALTERNATE ANGLES >>       |
-
+|    SWIPE TO SEE ALL 5 REAL STORE PHOTOS & ANGLES >>         |
 +-------------------------------------------------------------+
-
 ```
-
-
 
 ### Strict Brand Ambassador Rules:
 
-1. **Slide 1 (Elena Avatar Hero Showcase)**:
+1. **Slide 1 (Full-Width Real Store Product Showcase)**:
 
-   - Dedicated master avatar asset located at `data/assets/elena_avatar.jpg`.
+   - Features the 100% authentic scraped store photo across the full width in high resolution, displaying the true product, model, fabric, and colors without clothing or body mismatches.
 
-   - Dual-card split layout: Elena is showcased on the left card in traditional elegance with gold framing and a `"Styled by Elena"` badge.
+   - Elena is featured as a circular brand ambassador watermark badge (gold-ringed avatar in the header corner), establishing brand authority as the trusted style curator.
 
-   - Scraped store product is displayed on the right card with a prominent discount badge (`"FLAT X% OFF"`) and `"Real Store Picture"` tag.
+   - Scraped store badges include `"REAL STORE PICTURE • CURATED BY ELENA"`, prominent discount badge (`"FLAT X% OFF"`), and customer review metrics.
 
-   - Clear price block displays Deal Price, MRP strikethrough, total savings, and customer review metrics.
+   - Clear price block displays Deal Price, MRP strikethrough, total savings, and units-to-goal tracking.
 
 2. **Slides 2 to N (Real Scraped Store Gallery)**:
 

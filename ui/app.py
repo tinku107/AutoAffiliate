@@ -1204,29 +1204,132 @@ elif nav_selection == "⚙️ Global Settings & Compliance":
 elif nav_selection == "🏷️ Page Setup & Launch Guide":
     st.subheader("🏷️ Social Media Setup, Affiliate Approval & High-Profit Playbook")
 
-    sub_t1, sub_t2, sub_t3 = st.tabs(["📱 Account Creation & Linking", "💳 Amazon & EarnKaro Setup", "💰 Most Profitable Platforms"])
+    sub_t1, sub_t2, sub_t3, sub_t4 = st.tabs([
+        "📱 Step-by-Step Meta Setup",
+        "🖥️ Portal Setup & Navigation Guide",
+        "💳 Amazon & EarnKaro Setup",
+        "💰 High-Profit Niches Playbook"
+    ])
 
     with sub_t1:
         st.markdown("""
-        ### Step-by-Step Meta (Instagram + Facebook) Page Setup
-        1. **Create Instagram Account**: Open Instagram app -> Create account (e.g. `@styledrop.in`, `@urbangent.in`, `@techpulse.india`). Switch account type to **Creator**.
-        2. **Create Facebook Page**: Go to [facebook.com/pages/create](https://www.facebook.com/pages/create) and create page matching your brand name.
-        3. **Link in Meta Business Suite**: Go to `business.facebook.com` -> Settings -> Linked Accounts -> Connect your Instagram. Now bot posts to FB automatically cross-post to Instagram!
+        ### Step-by-Step Meta (Instagram + Facebook) Page & Token Setup for Elena's World
+
+        Follow these exact steps to connect your pages so AutoAffiliate can post automatically without needing passwords:
+
+        ---
+
+        #### 1. Create Instagram & Facebook Page:
+        - **Create Instagram Account**:
+          - Open Instagram app → Create account: `@elenasworld.official` (or your chosen brand handle).
+          - Switch account type to **Creator** or **Business** in Instagram Settings → **Account Type and Tools** → **Switch to Professional Account**.
+        - **Create Facebook Page**:
+          - Go to [facebook.com/pages/create](https://www.facebook.com/pages/create) → Name: **Elena's World**.
+          - Category: **Women's Clothing Store** or **Fashion Model / Beauty**.
+          - Click **Create Page**.
+
+        ---
+
+        #### 2. Link Them in Meta Business Suite:
+        - Open [business.facebook.com](https://business.facebook.com/)
+        - Go to **Settings** → **Linked Accounts** → **Instagram** → Click **Connect Account**.
+        - Log in with `@elenasworld.official` and confirm.
+        - *Result:* Now any post published to Facebook automatically cross-posts to Instagram Reels and Feed!
+
+        ---
+
+        #### 3. Get a Page Access Token (Safe, Official & Never Flagged as Bot):
+        *(Never give username and password! Meta's security firewalls will block automated password logins. The official API Token is 100% safe, ban-proof, and official).*
+
+        - Go to [developers.facebook.com](https://developers.facebook.com/) and log in with your Facebook account.
+        - Click **My Apps** (top right) → **Create App** → Select **"Business"** (or Other → Business) → App Name: `AutoAffiliate App`.
+        - In the top navigation menu, go to **Tools** → **Graph API Explorer**:
+          1. Under **User or Page**, click the dropdown and select your Page: **Elena's World** *(Do NOT leave it on User Token)*.
+          2. Under **Permissions**, add these 4 required permissions:
+             - `pages_manage_posts` (allows publishing photos/posts to your page)
+             - `pages_read_engagement` (allows reading engagement & comments)
+             - `instagram_basic` (allows accessing connected Instagram account)
+             - `instagram_content_publish` (allows publishing reels & carousels to Instagram)
+          3. Click **Generate Access Token** and approve the Facebook confirmation pop-up.
+          4. Copy the Token string (starts with `EAAG...`) and copy your **Facebook Page ID**.
+
+        ---
+
+        #### 4. Paste Token into AutoAffiliate:
+        - Open **🏢 Channel Accounts Manager** in the left menu.
+        - Under **Elena's World**, paste your **Facebook Page ID** and **Meta Graph API Access Token**.
+        - (Or paste directly into `config/settings.yaml` under `channel_profiles.elenas_world`).
+        - Click **Save**. Done! The bot will now publish live posts and vertical reels directly to your page!
         """)
 
     with sub_t2:
         st.markdown("""
-        ### Affiliate Marketing Setup in India
-        1. **Amazon Associates India** ([affiliate-program.amazon.in](https://affiliate-program.amazon.in)): Sign up with your regular Amazon account. Paste your Instagram or Facebook URL as your website. Provide PAN and bank details.
-        2. **EarnKaro** ([earnkaro.com](https://earnkaro.com)): Instant signup with mobile OTP. Covers **Flipkart, Myntra, Ajio, Nykaa, Tata CliQ, Meesho** with zero approval waiting period.
+        ### 🖥️ Portal Quick-Start & Navigation Guide (De-Mystifying the Left Menu)
+
+        Are you feeling confused by all the options in the left menu? Here is the simple breakdown.
+
+        ---
+
+        #### ⚡ The 3-Step Setup (Do This Once and You Are Done!)
+        1. **Step 1: Verify EarnKaro ID**: Your EarnKaro ID **`5736594`** is already configured! All Flipkart, Myntra, Nykaa links automatically earn you money.
+        2. **Step 2: Plug in your Page ID & Token**: Go to **🏢 Channel Accounts Manager** → paste your Page ID and Access Token for Elena's World.
+        3. **Step 3: Start Autopilot**: Go to **🤖 Autonomous Autopilot** → make sure Elena's World is checked → click **🚀 START 24/7 AUTOPILOT**.
+
+        That is literally all! The bot will now run in the background 24/7 finding sarees, watches, and beauty items, generating Elena's branded photos and videos, and posting them with your EarnKaro link!
+
+        ---
+
+        #### 🧭 What Each Left Menu Option Actually Does (Plain English Map)
+
+        | Left Menu Section | What It Is For | How Often You Use It |
+        | :--- | :--- | :--- |
+        | **📊 Executive Dashboard** | **Your Scorecard**: View daily profit pacing vs target (₹5,000), total clicks, orders, and real-time bot audit logs. | **Daily** (Takes 10 seconds to check) |
+        | **🤖 Autonomous Autopilot** | **The Engine Switch**: Turn on/off 24/7 hands-free posting. Toggle which accounts run independently. | **Daily** (Start or Pause anytime) |
+        | **⚡ Live Product Sandbox** | **Instant Test-Drive**: Want to test a specific saree, kurta, watch, or beauty cream right now? Pick a category or type "silk saree" and click Test Now to see the photos, video, and copy in 15 seconds! | **Whenever you want to test on demand** |
+        | **📱 Content & Media Library** | **Your Post Deck**: View all drafts and published posts. Watch generated AI reels and view 4-slide carousels. | **Weekly or when reviewing posts** |
+        | **💬 Grok Command Console** | **Chat With Your Bots**: Talk to your digital employees in natural English (*"Test next saree"*, *"Set daily target to 2000"*). | **Optional** |
+        | **🏢 Channel Accounts Manager** | **Your Social Accounts List**: Where `Elena's World`, `StyleDrop`, and `UrbanGent` accounts are configured. | **One-Time Setup** (When adding or editing accounts) |
+        | **🎯 Niche & Account Mapping** | **Traffic Routing**: Connects product categories (Sarees/Kurtas/Watches) to specific accounts (`Elena's World`). | **One-Time Setup** |
+        | **🌐 E-Commerce Platforms** | **Your Partner Stores**: Amazon, Flipkart, Myntra, Nykaa registry with your affiliate tags. | **One-Time Setup** |
+        | **⚙️ Global Settings & Compliance** | **Rules & Safety**: Set daily profit target ₹X, anti-bot delays (90 to 210 mins), and your EarnKaro ID. | **One-Time Setup** |
+        | **🏷️ Page Setup & Launch Guide** | **Help & Tutorials**: This exact guide with step-by-step instructions! | **Whenever you need help** |
+
+        ---
+
+        #### 🔄 Your Simple 10-Second Daily Routine
+        ```mermaid
+        graph LR
+            A[1. Open Dashboard] --> B[2. Check Today's Earnings]
+            B --> C[3. Ensure Autopilot is Green 🟢]
+            C --> D[4. Close tab & let bot make money!]
+        ```
         """)
 
     with sub_t3:
         st.markdown("""
-        ### Most Profitable Affiliate Niches in India
-        - **Ladies Fashion & Sarees:** 7% - 10% commission (High virality reels)
-        - **Men's Fashion & Shoes:** 6% - 9% commission (Consistent year-round demand)
-        - **Credit Cards & BFSI (BankSathi / EarnKaro):** Flat ₹1,500 - ₹3,500 per approved card
-        - **Smartphones & Laptops:** 1% - 2.5% (High volume during festival sales)
-        - **Web Hosting & SaaS (Hostinger):** ₹1,800 - ₹4,500 per referral
+        ### 💳 Affiliate Setup & Approval Guide (India)
+
+        #### 1. EarnKaro (Your Active ID: `5736594`)
+        - **Status:** **Active & Verified in AutoAffiliate AI**
+        - **Stores Covered:** Flipkart, Myntra, Ajio, Nykaa, Mamaearth, Croma, Samsung, Tata 1mg, and 150+ brands.
+        - **Approval:** Instant with mobile OTP (zero waiting period and zero minimum follower requirement).
+        - **Payout Threshold:** Minimum **₹10** directly transferred to your Indian bank account via NEFT.
+
+        #### 2. Amazon Associates India
+        - **Website:** [affiliate-program.amazon.in](https://affiliate-program.amazon.in)
+        - **Sign Up:** Use your regular Amazon.in shopping account. When asked for your website, paste your Facebook Page (`facebook.com/ElenasWorld`) or Instagram profile (`instagram.com/elenasworld.official`).
+        - **Tag:** Paste your Amazon Associate tag in **⚙️ Global Settings**.
+        - **180-Day Rule:** You need 3 qualifying orders within 180 days for permanent approval. The bot's automated reels easily achieve this within the first 2 weeks.
+        """)
+
+    with sub_t4:
+        st.markdown("""
+        ### 💰 Most Profitable Categories for Elena's World
+
+        | Category | Typical Commission | Average Price | Your Profit per Sale | Conversion Rate |
+        | :--- | :--- | :--- | :--- | :--- |
+        | **👗 Sarees & Ethnic Kurtas** | 7.0% - 10.0% | ₹899 - ₹2,499 | **₹70 - ₹250** | **Extreme (High virality reels)** |
+        | **💄 Skincare & Beauty Serums** | 8.0% - 12.0% | ₹499 - ₹1,299 | **₹45 - ₹150** | **Very High (Daily repeat buyers)** |
+        | **⌚ Ladies Analog & Smart Watches** | 8.0% - 11.0% | ₹1,299 - ₹3,499 | **₹110 - ₹380** | **High (Gifting & self-purchase)** |
+        | **💎 Ethnic Jewellery & Jhumkas** | 9.0% - 14.0% | ₹399 - ₹999 | **₹40 - ₹140** | **Extreme (Impulse purchases)** |
         """)

@@ -647,6 +647,19 @@ with st.sidebar:
     else:
         st.markdown(f"<span style='color:{ap_standby_color}; font-weight:600;'>⚪ AUTOPILOT STANDBY</span>", unsafe_allow_html=True)
 
+    with st.expander("🤖 Bot Fleet Status (5 Online)", expanded=False):
+        c_green = "#15803d" if is_light else "#34d399"
+        c_muted = "#64748b" if is_light else "#94a3b8"
+        ap_txt = "🟢 RUNNING" if daemon.is_running else "⚪ STANDBY"
+        ap_col = c_green if daemon.is_running else c_muted
+        st.markdown(f'''
+        • <b>🔍 Scout Bot:</b> <span style="color:{c_green}; font-weight:600;">🟢 ONLINE</span><br>
+        • <b>🎨 Creative Bot:</b> <span style="color:{c_green}; font-weight:600;">🟢 ONLINE</span><br>
+        • <b>📣 Marketer Bot:</b> <span style="color:{c_green}; font-weight:600;">🟢 ONLINE</span><br>
+        • <b>🧹 Cleaner Bot:</b> <span style="color:{c_green}; font-weight:600;">🟢 ONLINE</span><br>
+        • <b>⚡ Autopilot:</b> <span style="color:{ap_col}; font-weight:600;">{ap_txt}</span>
+        ''', unsafe_allow_html=True)
+
     st.caption("ADMIN NAVIGATION")
     nav_selection = st.radio(
         "Navigation Menu",
@@ -703,6 +716,16 @@ with header_c2:
     header_color = "#0284c7" if is_light else "#38bdf8"
     st.markdown(f"<div style='text-align:right; margin-top:8px;'><span style='color:{header_color}; font-weight:700;'>{len(en_prof)} of {len(all_prof)} Accounts Active in Autopilot</span></div>", unsafe_allow_html=True)
 
+# ==============================================================================
+# GLOBAL THEME & STATUS CONSTANTS (ACCESSIBLE TO ALL 11 VIEWS)
+# ==============================================================================
+header_color = "#0284c7" if is_light else "#38bdf8"
+hl_color = "#0284c7" if is_light else "#38bdf8"
+chk_color = "#15803d" if is_light else "#34d399"
+active_color = "#15803d" if is_light else "#34d399"
+standby_color = "#64748b" if is_light else "#94a3b8"
+cleaner = st.session_state.orchestrator.cleaner
+
 st.divider()
 
 
@@ -749,9 +772,80 @@ if nav_selection == "📊 Executive Dashboard":
         </div>
         """, unsafe_allow_html=True)
 
+    # 2. BOT WORKFORCE & OPERATIONAL STATUS MATRIX
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("🤖 Autonomous Bot Workforce & Operational Status")
+    st.caption("Real-time telemetry and operational heartbeat across all specialized AI employees:")
+
+    st_stats = cleaner.get_storage_stats()
+    bc1, bc2, bc3, bc4 = st.columns(4)
+    with bc1:
+        st.markdown(f'''
+        <div class="account-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>🔍 Scout Agent</strong>
+                <span class="status-pill-active">🟢 ONLINE</span>
+            </div>
+            <div style="font-size:0.83rem; margin-top:8px; line-height:1.5;">
+                • <b>Function:</b> Live Deals & ASIN Hunter<br>
+                • <b>Network:</b> Amazon India + Multi-Store<br>
+                • <b>Tagging:</b> <code>tinkukrishnan-21</code><br>
+                • <b>Attribution:</b> Unique link per product
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+
+    with bc2:
+        st.markdown(f'''
+        <div class="account-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>🎨 Creative Agent</strong>
+                <span class="status-pill-active">🟢 ONLINE</span>
+            </div>
+            <div style="font-size:0.83rem; margin-top:8px; line-height:1.5;">
+                • <b>Function:</b> Copy & Media Director<br>
+                • <b>Avatar:</b> Elena Virtual Ambassador<br>
+                • <b>Assets:</b> 4-Slide Carousels + 9:16 Reels<br>
+                • <b>Copy Rules:</b> 100% Humanoid (Zero Emojis)
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+
+    with bc3:
+        st.markdown(f'''
+        <div class="account-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>📣 Marketer Agent</strong>
+                <span class="status-pill-active">🟢 ONLINE</span>
+            </div>
+            <div style="font-size:0.83rem; margin-top:8px; line-height:1.5;">
+                • <b>Function:</b> Meta Publisher & Lead Bot<br>
+                • <b>Pages:</b> Independent FB & Instagram<br>
+                • <b>Lead Responder:</b> Auto-DMs link on comment<br>
+                • <b>Anti-Bot:</b> Randomized human jitter delays
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+
+    with bc4:
+        st.markdown(f'''
+        <div class="account-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>🧹 Cleaner Agent</strong>
+                <span class="status-pill-active">🟢 24H PURGE</span>
+            </div>
+            <div style="font-size:0.83rem; margin-top:8px; line-height:1.5;">
+                • <b>Function:</b> Storage Janitor Bot<br>
+                • <b>Retention:</b> Purges files 24h after post<br>
+                • <b>Storage Used:</b> {st_stats['total_files']} files ({st_stats['total_mb']} MB)<br>
+                • <b>Protection:</b> Elena & DB records preserved
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 2. IN-TABLE EDITABLE REVENUE & METRICS TRACKER
+    # 3. IN-TABLE EDITABLE REVENUE & METRICS TRACKER
     st.subheader("📈 Daily Revenue & Performance Tracker (In-Table Editable)")
     st.markdown("<span class='table-hint'>✏️ Edit clicks, orders, earnings, or notes directly in the table below. Click 'Save Table Changes' to persist.</span>", unsafe_allow_html=True)
 

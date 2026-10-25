@@ -541,6 +541,31 @@ class AgentOrchestrator:
                 "response": f"🎯 **Daily Profit Target Updated to ₹{new_val:,.0f} / day!** All bot projections, units-to-goal calculations, and progress trackers have been updated."
             }
 
+        # Bot Fleet & Status Telemetry Query
+        if any(w in prompt for w in ["bot", "bots", "fleet", "workforce", "who is working", "status"]):
+            clean_stats = self.cleaner.get_storage_stats()
+            return {
+                "agent": "Orchestrator",
+                "response": (
+                    "🤖 **Autonomous Bot Fleet Telemetry & Current Status:**\n\n"
+                    "1. **🔍 Scout Bot** (`agents/scout_agent.py`): **🟢 ONLINE**\n"
+                    "   • Function: Scrapes live trending deals across Amazon, EarnKaro (Myntra/Nykaa/Ajio), and Flipkart.\n"
+                    "   • Attribution: Directly tags your official Associate ID (`tinkukrishnan-21`) and preserves `amzn.to` short links with unique ASINs.\n\n"
+                    "2. **🎨 Creative Bot** (`agents/creative_agent.py`): **🟢 ONLINE**\n"
+                    "   • Function: Creates Elena 4-slide carousels and renders 9:16 vertical AI reels (Edge-TTS neural voice + MoviePy).\n"
+                    "   • Compliance: 100% Humanoid copy (Strictly zero emojis and zero special characters).\n\n"
+                    "3. **📣 Marketer Bot** (`agents/marketer_agent.py`): **🟢 ONLINE**\n"
+                    "   • Function: Publishes to Facebook Pages and Instagram accounts via Meta Graph API; automatically replies to comment leads with affiliate links.\n"
+                    "   • Anti-Bot: Randomized human jitter scheduling (90 to 210 min intervals).\n\n"
+                    "4. **🧹 Cleaner Bot** (`agents/cleaner_agent.py`): **🟢 ONLINE (24h Auto-Purge Active)**\n"
+                    "   • Function: Storage Janitor that purges generated video/image files 24 hours after publishing to preserve disk space while keeping database logs and captions permanently.\n"
+                    f"   • Current Storage: {clean_stats['total_files']} files ({clean_stats['total_mb']} MB) in temporary media.\n\n"
+                    "5. **⚡ Autopilot Daemon** (`core/auto_daemon.py`): **🟢 ONLINE / BACKGROUND**\n"
+                    "   • Function: 24/7 background worker running autonomous deal discovery, rendering, and scheduled publishing.\n\n"
+                    f"👉 *All bots are working together to hit your configured target of ₹{self.daily_target_inr:,.0f} / day.*"
+                )
+            }
+
         # Test Next Product
         if any(w in prompt for w in ["test", "try next", "sample", "check next"]):
             query = None

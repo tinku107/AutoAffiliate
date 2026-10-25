@@ -110,8 +110,23 @@ class ImageGenerator:
         # 1. Top Header Bar
         header_bg_height = 120
         draw.rectangle([(0, 0), (width, header_bg_height)], fill=(245, 158, 11))
-        title_font = self._get_font(42, bold=True)
+        title_font = self._get_font(38, bold=True)
         draw.text((width // 2, 60), header_text, fill=(10, 10, 15), anchor="mm", font=title_font)
+
+        # Elena Avatar Badge Overlay
+        avatar_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "assets", "elena_avatar.jpg")
+        if os.path.exists(avatar_path):
+            try:
+                av = Image.open(avatar_path).convert("RGBA")
+                av_size = 92
+                av = av.resize((av_size, av_size), Image.Resampling.LANCZOS)
+                av_mask = Image.new("L", (av_size, av_size), 0)
+                ImageDraw.Draw(av_mask).ellipse((0, 0, av_size, av_size), fill=255)
+                av_x, av_y = width - av_size - 25, 14
+                draw.ellipse((av_x - 3, av_y - 3, av_x + av_size + 3, av_y + av_size + 3), fill=(255, 255, 255))
+                img.paste(av, (av_x, av_y), av_mask)
+            except Exception:
+                pass
 
         # 2. Product Photo Card
         card_w, card_h = 760, 520

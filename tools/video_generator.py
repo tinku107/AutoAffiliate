@@ -52,15 +52,14 @@ class VideoGenerator:
         except Exception:
             return ImageFont.load_default()
 
-    async def _generate_voiceover_async(self, text: str, output_path: str):
+    async def _generate_voiceover_async(self, text: str, output_path: str, voice: str = "en-IN-NeerjaNeural"):
         """Generates clear, energetic neural voiceover in Indian English."""
-        voice = "en-IN-PrabhatNeural"
         communicate = edge_tts.Communicate(text, voice)
         await communicate.save(output_path)
 
-    def generate_voiceover(self, text: str, output_path: str):
+    def generate_voiceover(self, text: str, output_path: str, voice: str = "en-IN-NeerjaNeural"):
         try:
-            asyncio.run(self._generate_voiceover_async(text, output_path))
+            asyncio.run(self._generate_voiceover_async(text, output_path, voice=voice))
             return True
         except Exception as e:
             print(f"Voiceover generation fallback: {e}")
@@ -121,6 +120,20 @@ class VideoGenerator:
         video_temp_path = os.path.join(GENERATED_VID_DIR, f"video_temp_{pid}.mp4")
         final_mp4_path = os.path.join(GENERATED_VID_DIR, f"reel_{pid}.mp4")
 
+        # Check for Elena Avatar
+        avatar_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "assets", "elena_avatar.jpg")
+        avatar_img = None
+        if os.path.exists(avatar_path):
+            try:
+                av = Image.open(avatar_path).convert("RGBA")
+                av_size = 85
+                av = av.resize((av_size, av_size), Image.Resampling.LANCZOS)
+                av_mask = Image.new("L", (av_size, av_size), 0)
+                ImageDraw.Draw(av_mask).ellipse((0, 0, av_size, av_size), fill=255)
+                avatar_img = (av, av_mask)
+            except Exception:
+                pass
+
         # FFmpeg video writer process
         ffmpeg_cmd = [
             self.ffmpeg_exe,
@@ -158,8 +171,13 @@ class VideoGenerator:
             # Header Hook Banner
             header_y = 60
             draw.rectangle([(0, 0), (self.width, 110)], fill=(245, 158, 11))
-            hook_font = self._get_font(34, bold=True)
-            draw.text((self.width // 2, 55), "VIRAL DEAL ALERT ⚡", fill=(10, 10, 15), anchor="mm", font=hook_font)
+            hook_font = self._get_font(32, bold=True)
+            draw.text((self.width // 2 + 35 if avatar_img else self.width // 2, 55), "ELENA'S PICK ⚡", fill=(10, 10, 15), anchor="mm", font=hook_font)
+
+            if avatar_img:
+                av_x, av_y = 20, 12
+                draw.ellipse((av_x - 3, av_y - 3, av_x + 85 + 3, av_y + 85 + 3), fill=(255, 255, 255))
+                frame.paste(avatar_img[0], (av_x, av_y), avatar_img[1])
 
             # Animated zoom on product card (Gentle breathing effect)
             zoom_factor = 1.0 + 0.04 * math.sin(t * 2.5)

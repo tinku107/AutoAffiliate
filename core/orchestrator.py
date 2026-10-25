@@ -17,7 +17,10 @@ from core.db import (
     get_revenue_history,
     get_recent_logs,
     log_agent_action,
-    log_daily_revenue
+    log_daily_revenue,
+    get_discarded_product_ids,
+    discard_product_in_db,
+    clear_discarded_history
 )
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "settings.yaml")
@@ -36,6 +39,7 @@ class AgentOrchestrator:
         self.creative = CreativeAgent(gemini_api_key=gemini_key)
         self.marketer = MarketerAgent()
         self.tested_product_ids = set()
+        self.discarded_product_ids = get_discarded_product_ids()
         self.test_counter = 0
 
     def _load_config(self) -> Dict[str, Any]:
@@ -379,21 +383,26 @@ class AgentOrchestrator:
         if not products:
             return {"success": False, "error": f"No live products retrieved from {platform.upper()} for '{query or category}'"}
 
-        # Find the next product that has not been tested in this session
+        # Find the next product that has not been tested and not discarded
+        valid_products = [p for p in products if p.get("product_id") not in self.discarded_product_ids]
         target_prod = None
-        for p in products:
+        for p in (valid_products or products):
             pid = p.get("product_id")
-            if pid and pid not in self.tested_product_ids:
+            if pid and pid not in self.tested_product_ids and pid not in self.discarded_product_ids:
                 target_prod = p
                 self.tested_product_ids.add(pid)
                 break
 
-        # If all products in the pool have been tested, clear history and cycle
-        if not target_prod:
+        # If all products in the pool have been tested, clear session history and cycle
+        if not target_prod and (valid_products or products):
+            pool = valid_products or products
             self.tested_product_ids.clear()
-            idx = self.test_counter % len(products)
-            target_prod = products[idx]
+            idx = self.test_counter % len(pool)
+            target_prod = pool[idx]
             self.tested_product_ids.add(target_prod.get("product_id"))
+
+        if not target_prod:
+            return {"success": False, "error": "No available products (all retrieved items may be discarded)."}
 
         self.test_counter += 1
 
@@ -408,26 +417,46 @@ class AgentOrchestrator:
             "post": post
         }
 
+    def discard_product(self, product_id: str, db_id: Optional[int] = None) -> bool:
+        """Removes a product the user dislikes from testing queue, database, and future autopilot selection."""
+        self.discarded_product_ids.add(product_id)
+        self.tested_product_ids.add(product_id)
+        discard_product_in_db(product_id)
+        log_agent_action("Orchestrator", f"User discarded product [{product_id}]. Excluded from future autopilot & testing.", "completed")
+        return True
+
+    def clear_discard_history(self) -> bool:
+        """Clears user discard blacklist upon request."""
+        self.discarded_product_ids.clear()
+        clear_discarded_history()
+        log_agent_action("Orchestrator", "Reset discarded product blacklist upon user request.", "completed")
+        return True
+
     def run_profile_autonomous_cycle(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """
         Executes an independent autonomous cycle for a single channel profile:
         1. Scouts a live product matching the profile's dedicated focus_niche
-        2. Generates humanoid copy (zero icons/special characters) tailored to that niche
-        3. Publishes to that profile's specific Instagram & Facebook accounts
-        4. Runs organic audience growth (likes, comments, follower invites) in that niche
+        2. Filters out any products discarded/disliked by user
+        3. Autopilot autonomously chooses the best converting deal
+        4. Publishes to that profile's specific Instagram & Facebook accounts
+        5. Runs organic audience growth in that niche
         """
         prof_name = profile.get("name", "Channel")
         target_niche = profile.get("focus_niche", "all")
         log_agent_action("Orchestrator", f"Starting independent cycle for [{prof_name}] in niche '{target_niche}'", "started")
 
-        products = self.scout.scout_trending_products(category=target_niche, count=1, target_profit=self.daily_target_inr)
-        if not products:
-            products = self.scout.scout_trending_products(category="all", count=1, target_profit=self.daily_target_inr)
+        products = self.scout.scout_trending_products(category=target_niche, count=5, target_profit=self.daily_target_inr)
+        # Filter out user-discarded items so Autopilot never picks disliked products
+        valid_prods = [p for p in products if p.get("product_id") not in self.discarded_product_ids]
+        if not valid_prods:
+            products = self.scout.scout_trending_products(category="all", count=5, target_profit=self.daily_target_inr)
+            valid_prods = [p for p in products if p.get("product_id") not in self.discarded_product_ids]
 
-        if not products:
-            return {"success": False, "channel": prof_name, "error": "No products discovered"}
+        if not valid_prods:
+            return {"success": False, "channel": prof_name, "error": "No non-discarded products available in niche"}
 
-        prod = products[0]
+        # Autopilot autonomously chooses the best product
+        prod = valid_prods[0]
         post = self.creative.generate_content_for_product(prod, channel_niche=target_niche, channel_profile=profile)
         post["target_channel"] = profile.get("id")
 

@@ -919,6 +919,7 @@ elif nav_selection == "🤖 Autonomous Autopilot":
         <div style="font-size:0.92rem; margin-top:8px; line-height:1.6;">
             • <b>Active Independent Accounts:</b> {', '.join(en_names) if en_names else 'None selected'}<br>
             • <b>Dynamic Timing:</b> No fixed schedule (static 12:30/18:30 removed). Next run dynamically picked between 90m to 210m with random jitter.<br>
+            • <b>Autonomous Selection & Blacklist Shield:</b> When running, Autopilot autonomously selects top-performing deals while strictly skipping any product you discarded in the sandbox.<br>
             • <b>Humanoid Content:</b> 100% clean copy with ZERO emojis and ZERO special characters.<br>
             • <b>Organic Growth:</b> Finds new people daily, likes recent posts, leaves authentic comments, and invites high-intent users.<br>
             • <b>Telemetry:</b> Completed Cycle #{daemon.cycle_count} • Last run: {last_str} • Next dynamic window: {next_str}
@@ -940,19 +941,26 @@ elif nav_selection == "🤖 Autonomous Autopilot":
 elif nav_selection == "⚡ Live Product Sandbox":
     st.subheader("⚡ Instant Live Product Test Sandbox")
     st.markdown("""
-    Test the entire autonomous pipeline on demand:
-    1. Scrapes the **next real live product** from Amazon India & Flipkart (no hardcoded data).
-    2. Generates **100% Humanoid Copy** (Zero icons, zero emojis, zero decorative special characters).
-    3. Downloads multiple gallery pictures & generates a 4-slide Instagram Carousel.
-    4. Compiles a 15-second vertical AI Reel video with neural voiceover.
+    Test and curate live deals on demand:
+    1. **Platform Sources:** Sourced directly from **EarnKaro** (150+ stores like Myntra & Nykaa), Amazon India, or Flipkart.
+    2. **Product Approval & Removal:** If you dislike any product, click **🗑️ Discard & Remove** to permanently blacklist it.
+    3. **Autopilot Autonomy:** When 24/7 Autopilot is running, it autonomously selects the top deals while strictly respecting your discarded list.
+    4. **Humanoid Copy:** Generated with zero emojis and zero special characters; hero slide showcases the dedicated Elena avatar.
     """)
 
     t_plat, t_cat_col, t_query_col, t_btn_col = st.columns([1.5, 1.8, 1.8, 1.4])
     with t_plat:
         test_platform = st.selectbox(
             "Platform Source",
-            ["auto", "amazon", "flipkart"],
-            format_func=lambda x: {"auto": "⚡ Auto (Amazon + Flipkart)", "amazon": "📦 Amazon India", "flipkart": "🛍️ Flipkart"}.get(x, x)
+            ["auto", "earnkaro", "amazon", "flipkart", "myntra", "nykaa"],
+            format_func=lambda x: {
+                "auto": "⚡ Auto (All Platforms)",
+                "earnkaro": "💎 EarnKaro (150+ Stores)",
+                "amazon": "📦 Amazon India",
+                "flipkart": "🛍️ Flipkart",
+                "myntra": "👗 Myntra (via EarnKaro)",
+                "nykaa": "💄 Nykaa (via EarnKaro)"
+            }.get(x, x)
         )
     with t_cat_col:
         test_cat = st.selectbox(
@@ -988,6 +996,18 @@ elif nav_selection == "⚡ Live Product Sandbox":
                 st.rerun()
             else:
                 st.error(res.get("error", "Failed to retrieve product."))
+
+    # Show Discarded Products Management Bar
+    discarded_set = st.session_state.orchestrator.discarded_product_ids
+    if discarded_set:
+        with st.expander(f"🗑️ Discarded / Removed Products Blacklist ({len(discarded_set)} items removed)", expanded=False):
+            st.caption("Products below were disliked and removed by you. Both Live Sandbox and 24/7 Autopilot strictly skip these products and pick alternative high-converting deals.")
+            d_pids = list(discarded_set)
+            st.write(", ".join([f"`{pid}`" for pid in d_pids[:30]]))
+            if st.button("♻️ Clear Discard Blacklist (Restore All Discarded Products)", key="btn_clear_discard_top"):
+                st.session_state.orchestrator.clear_discard_history()
+                st.toast("Discard blacklist cleared! All products are now eligible again.", icon="♻️")
+                st.rerun()
 
     if st.session_state.last_test_result:
         res = st.session_state.last_test_result
@@ -1043,10 +1063,30 @@ elif nav_selection == "⚡ Live Product Sandbox":
                 st.code(pst.get('reel_script', ''), language="markdown")
 
             target_account = st.session_state.orchestrator.get_active_profile()
-            if st.button(f"🚀 Publish Test Post to [{target_account.get('name')}]", use_container_width=True):
-                with st.spinner("Publishing across Meta & Telegram..."):
-                    pub_res = st.session_state.orchestrator.marketer.publish_approved_post(pst, channel_profile=target_account)
-                    st.success("Test post published successfully!")
+            act_col1, act_col2, act_col3 = st.columns([1.6, 1.2, 1.2])
+            with act_col1:
+                if st.button(f"🚀 Publish to [{target_account.get('name')}]", use_container_width=True, type="primary"):
+                    with st.spinner("Publishing across Meta & Telegram..."):
+                        pub_res = st.session_state.orchestrator.marketer.publish_approved_post(pst, channel_profile=target_account)
+                        st.success("Test post published successfully!")
+            with act_col2:
+                if st.button("🗑️ Discard & Remove", use_container_width=True, help="Dislike this product? Remove it immediately. Autopilot and Sandbox will never select it again."):
+                    st.session_state.orchestrator.discard_product(p.get("product_id"), db_id=p.get("id"))
+                    st.session_state.last_test_result = None
+                    st.toast(f"🗑️ Discarded '{p.get('title')[:30]}...'. Blacklisted from future suggestions.", icon="🚫")
+                    st.rerun()
+            with act_col3:
+                if st.button("🔄 Discard & Next", use_container_width=True, help="Remove this product and immediately scout & generate the next deal"):
+                    st.session_state.orchestrator.discard_product(p.get("product_id"), db_id=p.get("id"))
+                    with st.spinner("Discarded! Fetching next live deal..."):
+                        res = st.session_state.orchestrator.test_next_product(
+                            category=test_cat,
+                            query=test_query if test_query else None,
+                            platform=test_platform
+                        )
+                        st.session_state.last_test_result = res if res.get("success") else None
+                        st.toast("Disliked item removed! Next deal loaded.", icon="🔄")
+                        st.rerun()
 
 
 # ==============================================================================

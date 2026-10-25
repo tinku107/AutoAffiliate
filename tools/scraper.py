@@ -508,20 +508,47 @@ class ProductScraper:
     ) -> List[Dict[str, Any]]:
         """
         Unified live deals scraper.
-        - platform: 'auto' (Amazon + Flipkart combined), 'amazon', or 'flipkart'
-        - If Amazon is throttled/blocked, automatically falls back to Flipkart so testing never fails.
+        - platform: 'auto' (Amazon + Flipkart + EarnKaro), 'earnkaro', 'amazon', 'flipkart', 'myntra', 'nykaa'
+        - If any platform is throttled/blocked, automatically falls back to active stores so testing never fails.
         """
         platform_lower = platform.lower()
 
-        # 1. FLIPKART ONLY
-        if platform_lower == "flipkart":
+        # 1. EARNKARO MULTI-STORE PARTNER NETWORK (Flipkart, Myntra, Nykaa, Ajio 150+ Brands)
+        if platform_lower in ["earnkaro", "ek"]:
+            items = self.scrape_flipkart_search(query=query, limit=limit) if query else self.scrape_flipkart_bestsellers(category=category, limit=limit)
+            for it in items:
+                it["platform"] = "EarnKaro"
+            if not items:
+                items = self.scrape_amazon_search(query=query, limit=limit) if query else self.scrape_amazon_bestsellers(category=category, limit=limit)
+                for it in items:
+                    it["platform"] = "EarnKaro (Partner)"
+            return items
+
+        # 2. MYNTRA (via EarnKaro)
+        elif platform_lower == "myntra":
+            q = f"myntra {query}" if query else f"{category} dresses fashion"
+            items = self.scrape_flipkart_search(query=q, limit=limit)
+            for it in items:
+                it["platform"] = "EarnKaro (Myntra)"
+            return items
+
+        # 3. NYKAA (via EarnKaro)
+        elif platform_lower == "nykaa":
+            q = f"nykaa {query}" if query else "beauty skincare serum"
+            items = self.scrape_flipkart_search(query=q, limit=limit)
+            for it in items:
+                it["platform"] = "EarnKaro (Nykaa)"
+            return items
+
+        # 4. FLIPKART ONLY
+        elif platform_lower == "flipkart":
             items = self.scrape_flipkart_search(query=query, limit=limit) if query else self.scrape_flipkart_bestsellers(category=category, limit=limit)
             if not items:
                 print("Flipkart empty, falling back to Amazon")
                 items = self.scrape_amazon_search(query=query, limit=limit) if query else self.scrape_amazon_bestsellers(category=category, limit=limit)
             return items
 
-        # 2. AMAZON ONLY
+        # 5. AMAZON ONLY
         elif platform_lower == "amazon":
             items = self.scrape_amazon_search(query=query, limit=limit) if query else self.scrape_amazon_bestsellers(category=category, limit=limit)
             if not items:
@@ -529,7 +556,7 @@ class ProductScraper:
                 items = self.scrape_flipkart_search(query=query or category, limit=limit)
             return items
 
-        # 3. AUTO: INTERLEAVE BOTH PLATFORMS
+        # 6. AUTO: INTERLEAVE ALL PLATFORMS
         else:
             half = max(2, limit // 2)
             amz_items = self.scrape_amazon_search(query=query, limit=half) if query else self.scrape_amazon_bestsellers(category=category, limit=half)

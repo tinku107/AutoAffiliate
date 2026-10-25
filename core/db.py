@@ -182,6 +182,35 @@ def update_product_status(product_id: int, status: str):
     conn.close()
 
 
+def discard_product_in_db(product_id: str):
+    """Marks a product as permanently discarded and cleans up any unapproved drafts."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE products SET status = 'discarded' WHERE product_id = ?", (product_id,))
+    cursor.execute("DELETE FROM posts WHERE product_id IN (SELECT id FROM products WHERE product_id = ?) AND status = 'draft'", (product_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_discarded_product_ids() -> set:
+    """Returns set of blacklisted/discarded product IDs."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT product_id FROM products WHERE status = 'discarded'")
+    rows = [r[0] for r in cursor.fetchall() if r[0]]
+    conn.close()
+    return set(rows)
+
+
+def clear_discarded_history():
+    """Resets discarded blacklist if user chooses."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE products SET status = 'scouted' WHERE status = 'discarded'")
+    conn.commit()
+    conn.close()
+
+
 # ---------------- POSTS REPO ----------------
 def save_post(post: Dict[str, Any]) -> int:
     conn = get_db_connection()

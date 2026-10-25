@@ -359,7 +359,8 @@ with st.sidebar:
             "📱 Content & Media Library",
             "💬 Grok Command Console",
             "⚙️ Global Settings & Compliance",
-            "🏷️ Page Setup & Launch Guide"
+            "🏷️ Page Setup & Launch Guide",
+            "📖 System Wiki & Operations Manual"
         ],
         index=0,
         label_visibility="collapsed"
@@ -1387,3 +1388,217 @@ elif nav_selection == "🏷️ Page Setup & Launch Guide":
         | **⌚ Ladies Analog & Smart Watches** | 8.0% - 11.0% | ₹1,299 - ₹3,499 | **₹110 - ₹380** | **High (Gifting & self-purchase)** |
         | **💎 Ethnic Jewellery & Jhumkas** | 9.0% - 14.0% | ₹399 - ₹999 | **₹40 - ₹140** | **Extreme (Impulse purchases)** |
         """)
+
+
+# ==============================================================================
+# VIEW 11: SYSTEM WIKI & OPERATIONS MANUAL
+# ==============================================================================
+elif nav_selection == "📖 System Wiki & Operations Manual":
+    st.subheader("📖 Master System Wiki & Operations Manual")
+    st.markdown("Exhaustive reference documentation detailing all subsystems, brand ambassador rules, deal sourcing pipelines, link privacy, curation mechanisms, and day-to-day operations.")
+
+    wiki_tab1, wiki_tab2, wiki_tab3, wiki_tab4, wiki_tab5, wiki_tab6, wiki_tab7 = st.tabs([
+        "🏛️ Architecture & Bots",
+        "👑 Elena Avatar & Media",
+        "💎 Deal Sourcing & EarnKaro",
+        "🛡️ Link Privacy & Cloaking",
+        "🗑️ Discard & Autopilot",
+        "✍️ Humanoid Copy & DM",
+        "🧭 Full Operations Manual"
+    ])
+
+    with wiki_tab1:
+        st.markdown("""
+        ### 🏛️ Subsystem Architecture & Multi-Agent Team
+
+        AutoAffiliate AI operates as an autonomous digital business team coordinated by a central orchestrator.
+
+        ```mermaid
+        graph TD
+            Admin([Business Operator]) --> Orch[Agent Orchestrator]
+            Daemon[24/7 Background Daemon] --> Orch
+            
+            Orch --> Scout[Scout Agent]
+            Orch --> Creative[Creative Studio Agent]
+            Orch --> Marketer[Marketer & Growth Agent]
+            
+            Scout --> Scrapers[Multi-Store Scraper: Amazon, Flipkart, EarnKaro]
+            Scout --> Tagger[Affiliate Tagger & URL Cloaker]
+            
+            Creative --> Carousel[Dual-Card 4-Slide Carousel Generator]
+            Creative --> Reel[9:16 Vertical Video & Neural Voiceover]
+            
+            Marketer --> MetaAPI[Meta Graph API: IG & FB]
+            Marketer --> AutoDM[Inbound Comment Auto-DM Funnel]
+            Marketer --> Growth[Organic Audience Growth Engine]
+            
+            Orch --> SQLite[(Local SQLite: autoaffiliate.db)]
+        ```
+
+        #### Digital Employee Bot Roster:
+        1. **Central Orchestrator (`core/orchestrator.py`)**:
+           - Manages channel profiles (`elenas_world`, `mens_fashion`, etc.), niche traffic routing, dynamic target profit scaling (₹X), live product testing, and discard blacklisting.
+        2. **Scout Bot (`agents/scout_agent.py`)**:
+           - Connects to real-time e-commerce platforms (Amazon India, Flipkart, EarnKaro 150+ network).
+           - Computes estimated commission per sale and dynamically calculates units needed to reach the daily profit goal.
+        3. **Creative Studio Bot (`agents/creative_agent.py`)**:
+           - Enforces strict brand ambassador visual rules (Slide 1 Elena Avatar + Slides 2..N store gallery).
+           - Generates 100% humanoid copy (zero emojis, zero special characters).
+           - Compiles 15-second vertical AI Reels with dynamic text and neural audio voiceover.
+        4. **Marketer Bot (`agents/marketer_agent.py`)**:
+           - Dispatches posts to Instagram, Facebook Pages, and Telegram channels.
+           - Listens for "Comment LINK" leads and delivers instant, personalized direct messages with cloaked referral URLs.
+           - Executes daily organic audience growth tasks (liking, commenting, inviting prospects).
+        5. **24/7 Autonomous Daemon (`core/auto_daemon.py`)**:
+           - Background worker running independent cycles with non-fixed anti-spam jitter intervals (90 to 210 minutes).
+        """)
+
+    with wiki_tab2:
+        st.markdown("""
+        ### 👑 Brand Ambassador ("Elena") & Media Engine
+
+        To establish an authentic brand identity and prevent posts from looking like generic bot spam, AutoAffiliate AI enforces a strict brand visual standard:
+
+        #### 1. Dual-Card Multi-Image Carousel
+        - **Slide 1 (Elena Avatar Hero Showcase)**:
+          - Dedicated master avatar asset located at `data/assets/elena_avatar.jpg`.
+          - Dual-card split layout: Elena is showcased on the left card in traditional elegance with gold framing and a `"Styled by Elena"` badge.
+          - Scraped store product is displayed on the right card with a prominent discount badge (`"FLAT X% OFF"`) and `"Real Store Picture"` tag.
+          - Clear price block displays Deal Price, MRP strikethrough, total savings, and customer review metrics.
+        - **Slides 2 to N (Real Scraped Store Gallery)**:
+          - Every subsequent slide is dedicated 100% to displaying real gallery photos extracted from the store page (front drape, fabric texture, border close-up, pallu design, packaging).
+          - Includes angle tags (e.g., `Slide 2 of 5: Fabric Weave & Border Detail`), brand watermark badge, and offer price recap.
+
+        #### 2. Automated AI Video Generator (9:16 Vertical Reels & Shorts)
+        - **Automatic MP4 Compilation**: Generates vertical (720x1280) Instagram Reels using `ffmpeg`:
+          - Animated product zoom and breathing motion effects
+          - Pulsing discount badge (`FLAT X% OFF`)
+          - Glowing price tag and MRP strikethrough
+          - Animated call-to-action bar (`COMMENT 'LINK' FOR DIRECT DM`)
+        - **Neural Voiceover Narration**: Built-in Microsoft Edge Neural Speech engine (`edge-tts`) generating natural Indian English voiceover narrating the deal and urgency.
+        """)
+
+    with wiki_tab3:
+        st.markdown("""
+        ### 💎 Deal Sourcing & Multi-Store Aggregator (EarnKaro)
+
+        AutoAffiliate AI eliminates hardcoded dictionaries. All products, prices, discounts, ratings, and gallery images are retrieved live from e-commerce platforms.
+
+        #### Supported Platforms & Sources:
+        1. **EarnKaro Master Aggregator (150+ Indian Stores)**:
+           - Configured with Publisher ID: **`5736594`**.
+           - Enables earning commissions from 150+ Indian platforms with zero individual approvals required:
+             - **Flipkart**
+             - **Myntra** (Apparel, ethnic wear, shoes)
+             - **Nykaa & Nykaa Man** (Cosmetics, skincare, perfumes)
+             - **Ajio** (Trendy youth fashion)
+             - **Mamaearth & The Derma Co** (Organic beauty)
+             - **Croma & Samsung** (Electronics, appliances)
+             - **Tata 1mg** (Health & wellness)
+        2. **Amazon India**:
+           - Scrapes live bestsellers and search results.
+           - Automatically tags URLs with your Amazon Associate tag (e.g. `autoaffil-21`).
+        3. **Flipkart Direct**:
+           - Direct live deal scraping with discount extraction.
+        4. **Runtime Platform Extensibility**:
+           - Operators can register ANY new e-commerce website (e.g. Bewakoof, Purplle, Meesho) directly from the dashboard without touching code.
+        """)
+
+    with wiki_tab4:
+        st.markdown("""
+        ### 🛡️ Affiliate Link Privacy & Automated URL Cloaking
+
+        Followers and social media platform algorithms are sensitive to commercial tracking links. Exposing raw tracking parameters often leads to lower reach or decreased trust.
+
+        #### Privacy & Cloaking Architecture:
+        1. **Strict Follower Privacy**:
+           - Followers, commenters, and social algorithms **NEVER see `earnkaro.com` strings**.
+        2. **Instant TinyURL Engine (`tools/affiliate_tagger.py`)**:
+           - Automatically shortens deep tracking links into clean, high-converting short URLs (`https://tinyurl.com/...`).
+           - Includes memory caching (`_url_cache`) to prevent redundant network requests.
+        3. **Two-Tier Link Architecture**:
+           - **Public Deal Link (Follower-Facing)**: Clean cloaked link sent in captions, direct messages, and Telegram broadcasts.
+           - **Raw Tracking Link (Publisher-Only)**: Preserves your publisher ID `5736594` and target URL. Only accessible within the admin dashboard expander for commission verification.
+        4. **Automated Interception in Marketer Bot**:
+           - Even if an older uncloaked link enters the DM pipeline, `MarketerAgent.handle_incoming_comment_lead()` automatically intercepts and cloaks it before sending the message.
+        """)
+
+    with wiki_tab5:
+        st.markdown("""
+        ### 🗑️ Product Curation, Discard & Autopilot Shield
+
+        Operators maintain complete authority over what is posted. If an item does not meet brand aesthetics or quality standards, it can be removed immediately.
+
+        #### Functional Controls:
+        1. **`🗑️ Discard & Remove`**:
+           - Removes the product from the current view.
+           - Deletes any unapproved draft posts associated with the product.
+           - Records the product ID in the persistent SQLite table `discarded_products`.
+        2. **`🔄 Discard & Next`**:
+           - Blacklists the unwanted product and immediately scouts the next live deal in the selected category.
+        3. **Autopilot Blacklist Shield**:
+           - When 24/7 Autopilot is running, it queries candidate products and filters out any item on the user's blacklist. Autopilot autonomously chooses high-performing alternatives and will never select an item you discarded.
+        4. **Blacklist Manager**:
+           - An expander in the Sandbox view displays all blacklisted items and provides a **`♻️ Clear Discard Blacklist`** button to restore eligibility if desired.
+
+        #### 24/7 Autonomous Autopilot & Anti-Spam Jitter:
+        - **NO static schedules**: Dynamic intervals are randomly picked between **90 minutes and 210 minutes** to avoid platform bot detection.
+        - **Channel Independence**: Ladies Fashion deals post exclusively to *Elena's World*; Men's Fashion to *UrbanGent*; Tech to *TechPulse*.
+        """)
+
+    with wiki_tab6:
+        st.markdown("""
+        ### ✍️ 100% Humanoid Social Copywriting & Auto-DM Funnel
+
+        Social media algorithms and consumers are fatigued by AI-generated emojis and bot phrasing. AutoAffiliate AI enforces a 100% Humanoid Standard.
+
+        #### Strict Copywriting Rules:
+        - **Zero Emojis**: Captions, hashtags, video voiceovers, and direct messages contain zero emojis.
+        - **Zero Decorative Unicode Characters**: No stars, arrows, hearts, checkmarks, or fancy ASCII borders.
+        - **Transparent Pricing Layout**:
+          ```text
+          Real Price (MRP): Rs [Price]
+          Offer Deal Price: Rs [Price]
+          You Save: Flat [X]% off
+          ```
+        - **Authentic Sign-off**: Every post for Elena's World concludes naturally:
+          `Curated by Elena for Elena's World`
+
+        #### Inbound Comment Lead Auto-DM Funnel:
+        1. When a follower comments `LINK` or `PRICE` on an Instagram or Facebook post, the Marketer bot triggers `handle_incoming_comment_lead()`.
+        2. The bot sends a friendly, personalized direct message:
+           > *"Hello [Username], thanks for reaching out. Here is the direct purchase link for [Product Title]: [Cloaked TinyURL Link]. Please check it out before the current discount ends. Let me know if you need any other recommendations or have sizing questions."*
+        3. The tracking link is 100% cloaked, and the message contains zero emojis or robotic phrases.
+        """)
+
+    with wiki_tab7:
+        st.markdown("""
+        ### 🧭 Full Operations Manual & Step-by-Step Operator Guide
+
+        #### Complete Navigation Map:
+        | Navigation Section | Primary Purpose | Key Features |
+        | :--- | :--- | :--- |
+        | **📊 Executive Dashboard** | High-level performance scorecard | Daily revenue target pacing (₹X), logged clicks/orders, real-time agent audit logs, in-table editable revenue logger. |
+        | **🏢 Channel Accounts Manager** | Social media channel registry | In-table editable account table (Instagram handle, Page ID, token, niche mapping, autopilot toggle). |
+        | **🎯 Niche & Account Mapping** | Traffic routing matrix | Connects product categories (Sarees, Watches, Beauty) to specific channel profiles. |
+        | **🌐 E-Commerce Platforms** | Affiliate network manager | Add/edit partner stores (Amazon, Flipkart, EarnKaro, Myntra, Nykaa) and affiliate tracking parameters. |
+        | **🤖 Autonomous Autopilot** | Background automation control | Activation table for independent account loops, 1-click start/stop, dynamic jitter pacing monitor, cycle report. |
+        | **⚡ Live Product Sandbox** | On-demand testing & curation | Live scraper test-drive, Platform Source selector (EarnKaro, Myntra, Nykaa, Amazon, Flipkart), Discard & Remove controls, banner & reel preview. |
+        | **📱 Content & Media Library** | Post deck & asset player | In-table bulk post manager (status, headlines), video player for AI reels, 4-slide carousel inspector. |
+        | **💬 Grok Command Console** | Natural language interface | Chat with your AI team in plain English (*"Test next saree"*, *"Set daily target to 2000"*). |
+        | **⚙️ Global Settings & Compliance** | System-wide parameters | Currency, daily revenue target ₹X, Amazon Associate tag, EarnKaro ID `5736594`, anti-spam safety toggles. |
+        | **🏷️ Page Setup & Launch Guide** | Onboarding & tutorials | Detailed walk-through for Meta tokens, affiliate approvals, and profitable category guides. |
+        | **📖 System Wiki & Operations Manual** | Complete reference documentation | This master encyclopedia covering all subsystems, rules, and technical mechanics. |
+
+        #### Your Simple 10-Second Daily Routine:
+        ```mermaid
+        graph LR
+            Step1[1. Open Dashboard: localhost:8501] --> Step2[2. Check Executive Dashboard Clicks & Orders]
+            Step2 --> Step3[3. Verify Autopilot is Green 🟢]
+            Step3 --> Step4[4. Optional: Curate in Sandbox]
+            Step4 --> Step5[5. Done! Close tab]
+        ```
+
+        📄 *The full system manual is also persisted in your repository as [WIKI.md](file:///c:/AI/My%20Business%20Agents/WIKI.md).*
+        """)
+

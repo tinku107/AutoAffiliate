@@ -80,6 +80,11 @@ def init_db():
     except Exception:
         pass
 
+    try:
+        cursor.execute("ALTER TABLE posts ADD COLUMN media_purged INTEGER DEFAULT 0")
+    except Exception:
+        pass
+
     # 3. Engagement Tasks Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS engagement_tasks (
@@ -293,6 +298,46 @@ def bulk_update_posts(posts_data: List[Dict[str, Any]]):
         UPDATE posts SET headline = ?, status = ?, platform = ?
         WHERE id = ?
         """, (headline, status, platform, pid))
+    conn.commit()
+    conn.close()
+
+
+def get_published_posts_for_cleanup(hours: int = 24) -> List[Dict[str, Any]]:
+    """Returns published posts older than retention hours whose local media has not been purged."""
+    from datetime import datetime, timedelta
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+    SELECT * FROM posts 
+    WHERE status = 'published' 
+      AND (media_purged IS NULL OR media_purged = 0)
+      AND (
+          (published_time IS NOT NULL AND published_time <= ?)
+          OR (published_time IS NULL AND created_at <= ?)
+      )
+    """, (cutoff, cutoff))
+    rows = []
+    for r in cursor.fetchall():
+        d = dict(r)
+        try:
+            d["media_paths"] = json.loads(d.get("media_paths") or "[]")
+        except Exception:
+            d["media_paths"] = []
+        rows.append(d)
+    conn.close()
+    return rows
+
+
+def mark_post_media_purged(post_id: int):
+    """Marks a post's local media files as purged while preserving post metrics."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    UPDATE posts 
+    SET media_purged = 1, media_paths = '[]', video_path = '' 
+    WHERE id = ?
+    """, (post_id,))
     conn.commit()
     conn.close()
 

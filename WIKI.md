@@ -9,7 +9,8 @@ AutoAffiliate AI is a production-ready, autonomous multi-agent business operatio
 2. [Brand Ambassador Avatar & Multi-Slide Carousel System](#2-brand-ambassador-avatar--multi-slide-carousel-system)
 3. [E-Commerce Deal Sourcing & Multi-Store Aggregator (EarnKaro)](#3-e-commerce-deal-sourcing--multi-store-aggregator-earnkaro)
 4. [Affiliate Link Privacy & Automated URL Cloaking](#4-affiliate-link-privacy--automated-url-cloaking)
-5. [Product Curation, Discard & Blacklist Engine](#5-product-curation-discard--blacklist-engine)
+5. [1-Day Auto-Storage Janitor Bot](#5--1-day-auto-storage-janitor-bot-automatic-media-purge)
+6. [Product Curation, Discard & Blacklist Engine](#6-product-curation-discard--blacklist-engine)
 6. [24/7 Autonomous Autopilot & Anti-Spam Jitter Pacing](#6-247-autonomous-autopilot--anti-spam-jitter-pacing)
 7. [100% Humanoid Social Copywriting & Auto-DM Funnel](#7-100-humanoid-social-copywriting--auto-dm-funnel)
 8. [Social Media Setup & Production Launch Playbook](#8-social-media-setup--production-launch-playbook)
@@ -143,7 +144,24 @@ Followers and social media platform algorithms are sensitive to commercial track
 
 ---
 
-## 5. Product Curation, Discard & Blacklist Engine
+### 5. 🧹 1-Day Auto-Storage Janitor Bot (Automatic Media Purge)
+To prevent your computer or cloud server disk from filling up with thousands of generated carousel slides and vertical MP4 videos:
+- **Default Policy (24-Hour / 1-Day Retention)**:
+  - When a product post is published, its carousel images and 9:16 vertical MP4 video are retained on disk for exactly **1 day (24 hours)**.
+  - Exactly 24 hours after publishing (e.g. if posted today at 8:00 PM, then tomorrow at 8:00 PM), the **Storage Janitor Bot (`agents/cleaner_agent.py`)** automatically deletes the local image slides and video files from disk.
+- **Database & Metrics Integrity**:
+  - The SQLite database record in `posts` table is preserved permanently with all metrics, captions, hashtags, and external Meta post IDs intact.
+  - Daily revenue logs, clicks, and affiliate earnings are never affected.
+- **Strict Brand Asset Protection**:
+  - The master brand ambassador asset (`data/assets/elena_avatar.jpg`) is strictly protected and will **never** be touched or deleted.
+- **Orphan File Sweep**:
+  - The Janitor bot also sweeps temporary render files (such as `video_temp_*.mp4` or temporary voiceovers) that are older than 24 hours.
+- **Manual Trigger**:
+  - You can also trigger an on-demand purge anytime by clicking **`🧹 Purge >24h Media Now`** in the **📱 Content & Media Library** tab.
+
+---
+
+## 6. Product Curation, Discard & Blacklist Engine
 
 Operators maintain complete authority over what is posted. If an item does not meet brand aesthetics or quality standards, it can be removed immediately.
 

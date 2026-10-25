@@ -1095,6 +1095,28 @@ elif nav_selection == "⚡ Live Product Sandbox":
 elif nav_selection == "📱 Content & Media Library":
     st.subheader("📱 Content & Media Asset Deck")
 
+    # Storage Janitor Status & 1-Day Auto-Purge Controls
+    cleaner = st.session_state.orchestrator.cleaner
+    storage_stats = cleaner.get_storage_stats()
+
+    j_col1, j_col2, j_col3, j_col4 = st.columns([2.5, 1.2, 1.2, 1.5])
+    with j_col1:
+        st.markdown(f"**🧹 Auto-Storage Janitor:** <span style='color:{chk_color}; font-weight:700;'>🟢 ACTIVE</span> (Auto-purges posted images/videos after <b>{storage_stats['retention_hours']}h / 1 day</b>)", unsafe_allow_html=True)
+        st.caption("Frees disk space after publishing while keeping database records, captions, and commission history permanently.")
+    with j_col2:
+        st.metric("Generated Media", f"{storage_stats['total_files']} files")
+    with j_col3:
+        st.metric("Storage Used", f"{storage_stats['total_mb']} MB")
+    with j_col4:
+        st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
+        if st.button("🧹 Purge >24h Media Now", use_container_width=True, help="Immediately runs the Janitor bot to delete published media older than 1 day"):
+            with st.spinner("Janitor bot cleaning expired media..."):
+                c_res = cleaner.clean_expired_published_media()
+                st.toast(f"🧹 Janitor Purge: Deleted {c_res['files_deleted']} files ({c_res['freed_mb']} MB freed)!", icon="🗑️")
+                st.rerun()
+
+    st.divider()
+
     tab_lib1, tab_lib2 = st.tabs(["📋 In-Table Post Manager", "🗂️ Visual Cards & Media Player"])
 
     posts = get_posts(limit=30)
@@ -1226,12 +1248,27 @@ elif nav_selection == "⚙️ Global Settings & Compliance":
         with c_ts3:
             s_jit = st.number_input("Human Simulation Jitter (Seconds)", min_value=10, max_value=180, value=int(dyn_cfg.get("human_jitter_sec_max", 90)), step=5)
 
+        st.markdown("#### 3. 🧹 Storage Janitor & 1-Day Auto-Purge Policy")
+        s_clean_cfg = glob_cfg.get("storage_cleanup", {})
+        c_ret1, c_ret2 = st.columns(2)
+        with c_ret1:
+            s_auto_del = st.checkbox("Automatically delete posted media files after 1 day", value=bool(s_clean_cfg.get("auto_delete_after_posting", True)))
+        with c_ret2:
+            s_ret_hrs = st.number_input("Media Retention Period (Hours)", min_value=1, max_value=168, value=int(s_clean_cfg.get("retention_hours", 24)), step=6)
+
         if st.form_submit_button("Save All Settings"):
             if "affiliate" not in glob_cfg:
                 glob_cfg["affiliate"] = {}
             glob_cfg["affiliate"]["amazon_associate_tag"] = g_tag
             glob_cfg["affiliate"]["default_disclosure_text"] = g_disc
             glob_cfg["affiliate"]["earnkaro_api_key"] = g_earnkaro
+            if "storage_cleanup" not in glob_cfg:
+                glob_cfg["storage_cleanup"] = {}
+            glob_cfg["storage_cleanup"]["auto_delete_after_posting"] = bool(s_auto_del)
+            glob_cfg["storage_cleanup"]["retention_hours"] = int(s_ret_hrs)
+            glob_cfg["storage_cleanup"]["delete_orphan_media"] = True
+            st.session_state.orchestrator.cleaner.default_retention_hours = int(s_ret_hrs)
+
             if "dynamic_schedule" not in glob_cfg:
                 glob_cfg["dynamic_schedule"] = {}
             glob_cfg["dynamic_schedule"]["min_interval_minutes"] = int(s_min)
@@ -1544,6 +1581,12 @@ elif nav_selection == "📖 System Wiki & Operations Manual":
         #### 24/7 Autonomous Autopilot & Anti-Spam Jitter:
         - **NO static schedules**: Dynamic intervals are randomly picked between **90 minutes and 210 minutes** to avoid platform bot detection.
         - **Channel Independence**: Ladies Fashion deals post exclusively to *Elena's World*; Men's Fashion to *UrbanGent*; Tech to *TechPulse*.
+
+        #### 🧹 1-Day Auto-Storage Janitor Bot (Automatic Media Purge):
+        - **What it does**: When media (carousel images, vertical reel videos, temp voiceovers) is published, it is retained for **24 hours (1 day)** for verification.
+        - **Automatic 24-Hour Purge**: Tomorrow at the same time, the background Janitor bot automatically deletes those image and video files from disk to prevent consuming storage.
+        - **Data Integrity**: Database records, historical earnings, published captions, and external post IDs remain in SQLite permanently.
+        - **Asset Protection**: Master brand assets (like Elena's avatar) are strictly protected and never deleted.
         """)
 
     with wiki_tab6:

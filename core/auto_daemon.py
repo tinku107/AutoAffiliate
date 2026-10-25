@@ -59,7 +59,15 @@ class AutonomousAgentDaemon:
         enabled_profiles = self.orchestrator.get_enabled_autopilot_profiles()
         if not enabled_profiles:
             log_agent_action("AutoDaemon", "No channels currently enabled for Autopilot. Pausing cycle.", "warning")
-            return {"success": False, "reason": "No channels enabled"}
+            # 5. Routine Janitor Run: Automatically purge published media files older than 24 hours (1 day)
+        try:
+            purge_res = self.orchestrator.cleaner.clean_expired_published_media()
+            if purge_res.get("files_deleted", 0) > 0:
+                log_agent_action("AutoDaemon", f"Janitor Purge: Reclaimed {purge_res.get('freed_mb', 0)} MB from published media >24h.", "completed")
+        except Exception as e:
+            print(f"Janitor daemon cleanup note: {e}")
+
+        return {"success": False, "reason": "No channels enabled"}
 
         self.cycle_count += 1
         self.last_run_time = datetime.now()

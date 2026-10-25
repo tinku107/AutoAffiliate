@@ -142,6 +142,10 @@ safety_limits:
   max_comments_per_hour: 6
   max_likes_per_hour: 12
   min_delay_between_actions_sec: 120
+storage_cleanup:
+  auto_delete_after_posting: true
+  delete_orphan_media: true
+  retention_hours: 24
 supported_platforms:
 - domain: amazon.in
   name: Amazon India

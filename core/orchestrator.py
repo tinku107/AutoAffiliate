@@ -11,6 +11,7 @@ from typing import Dict, Any, List, Optional
 from agents.scout_agent import ScoutAgent
 from agents.creative_agent import CreativeAgent
 from agents.marketer_agent import MarketerAgent
+from agents.cleaner_agent import CleanerAgent
 from core.db import (
     get_products,
     get_posts,
@@ -38,6 +39,7 @@ class AgentOrchestrator:
         self.scout = ScoutAgent(amazon_tag=aff_tag, earnkaro_id=earnkaro_id)
         self.creative = CreativeAgent(gemini_api_key=gemini_key)
         self.marketer = MarketerAgent()
+        self.cleaner = CleanerAgent()
         self.tested_product_ids = set()
         self.discarded_product_ids = get_discarded_product_ids()
         self.test_counter = 0
@@ -425,6 +427,10 @@ class AgentOrchestrator:
         log_agent_action("Orchestrator", f"User discarded product [{product_id}]. Excluded from future autopilot & testing.", "completed")
         return True
 
+    def purge_expired_media(self, retention_hours: Optional[int] = None) -> Dict[str, Any]:
+        """Triggers 24-hour media cleanup for published posts."""
+        return self.cleaner.clean_expired_published_media(retention_hours=retention_hours)
+
     def clear_discard_history(self) -> bool:
         """Clears user discard blacklist upon request."""
         self.discarded_product_ids.clear()
@@ -462,6 +468,12 @@ class AgentOrchestrator:
 
         publish_res = self.marketer.publish_approved_post(post, channel_profile=profile)
         growth_res = self.marketer.grow_audience_and_engage(niche=target_niche, channel_profile=profile, count=2)
+
+        # Auto-purge published media older than 24 hours (1 day) by default
+        try:
+            self.cleaner.clean_expired_published_media()
+        except Exception as e:
+            print(f"Janitor cleanup note: {e}")
 
         summary = f"Completed independent cycle for [{prof_name}]: Posted {prod['title'][:35]} and ran {len(growth_res)} organic growth actions."
         log_agent_action("Orchestrator", summary, "completed")

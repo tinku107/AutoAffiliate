@@ -10,7 +10,7 @@ ai:
   model: gemini-2.5-flash
 app:
   currency: INR
-  daily_revenue_target_inr: 500.0
+  daily_revenue_target_inr: 50000.0
   name: AutoAffiliate AI
   theme_mode: Light
   version: 1.1.0

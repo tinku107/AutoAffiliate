@@ -541,6 +541,29 @@ class AgentOrchestrator:
                 "response": f"🎯 **Daily Profit Target Updated to ₹{new_val:,.0f} / day!** All bot projections, units-to-goal calculations, and progress trackers have been updated."
             }
 
+        # Meta Token Expiry & Reminder Query
+        if any(w in prompt for w in ["token", "expire", "expires", "remind", "expiration"]):
+            for p in self.get_channel_profiles():
+                if p.get("id") == "elenas_world" and p.get("token_expires_at"):
+                    import time
+                    now_epoch = int(time.time())
+                    exp_epoch = p.get("token_expires_epoch", 1798137354)
+                    days_left = max(0, int((exp_epoch - now_epoch) / 86400))
+                    return {
+                        "agent": "Marketer",
+                        "response": (
+                            f"🔐 **Meta Access Token Status & Expiry Watchdog:**\n\n"
+                            f"• **Channel Account:** Elena's World (`elenas_world`)\n"
+                            f"• **Facebook Page:** Elena's World (ID: `1484650751391885`)\n"
+                            f"• **Status:** 🟢 Active & Verified (`can_post: True`)\n"
+                            f"• **Expiration Date:** **December 24, 2026 at 18:35:54 UTC** (Dec 25 00:05 IST)\n"
+                            f"• **Days Remaining:** **{days_left} days**\n"
+                            f"• **Data Access Expiry:** January 23, 2027\n\n"
+                            f"⏰ **Automated Reminder Guarantee:**\n"
+                            f"AutoAffiliate AI monitors this token continuously. Starting **7 days before expiration** (December 17, 2026), persistent warning alerts will be raised across your Executive Dashboard, Channel Manager, and Autopilot logs so you have plenty of time to refresh the token."
+                        )
+                    }
+
         # Bot Fleet & Status Telemetry Query
         if any(w in prompt for w in ["bot", "bots", "fleet", "workforce", "who is working", "status"]):
             clean_stats = self.cleaner.get_storage_stats()

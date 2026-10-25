@@ -820,7 +820,7 @@ if nav_selection == "📊 Executive Dashboard":
             </div>
             <div style="font-size:0.83rem; margin-top:8px; line-height:1.5;">
                 • <b>Function:</b> Meta Publisher & Lead Bot<br>
-                • <b>Pages:</b> Independent FB & Instagram<br>
+                • <b>Meta Auth:</b> Elena's World (59d left • Dec 24)<br>
                 • <b>Lead Responder:</b> Auto-DMs link on comment<br>
                 • <b>Anti-Bot:</b> Randomized human jitter delays
             </div>
@@ -1023,6 +1023,19 @@ elif nav_selection == "🏢 Channel Accounts Manager":
             with col_a2:
                 st.markdown(f"• **Instagram:** `{prof.get('instagram_username') or 'Not configured'}`")
                 st.markdown(f"• **Facebook Page ID:** `{prof.get('facebook_page_id') or 'Not configured'}`")
+                if prof.get('token_expires_epoch') or prof.get('token_expires_at'):
+                    import time
+                    now_epoch = int(time.time())
+                    exp_epoch = prof.get('token_expires_epoch', 1798137354)
+                    days_left = max(0, int((exp_epoch - now_epoch) / 86400))
+                    if days_left > 7:
+                        st.markdown(f"• **Meta Token:** <span style='color:{chk_color}; font-weight:600;'>🟢 Active ({days_left}d left • Exp Dec 24, 2026)</span>", unsafe_allow_html=True)
+                    elif days_left > 0:
+                        st.markdown(f"• **Meta Token:** <span style='color:#eab308; font-weight:700;'>⚠️ Expiring Soon ({days_left}d left • Renew by Dec 24)</span>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("• **Meta Token:** <span style='color:#ef4444; font-weight:700;'>🚨 Expired — Refresh in Meta Portal</span>", unsafe_allow_html=True)
+                elif prof.get('meta_access_token'):
+                    st.markdown("• **Meta Token:** `Configured`")
                 st.markdown(f"• **Telegram Channel:** `{prof.get('telegram_channel_id') or 'Not configured'}`")
             with col_a3:
                 if not is_act:

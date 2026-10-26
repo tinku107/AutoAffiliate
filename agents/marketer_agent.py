@@ -115,18 +115,40 @@ class MarketerAgent:
                 telegram_channel_id=channel_profile.get("telegram_channel_id")
             )
 
-        image_path = post.get("media_paths", [None])[0] if post.get("media_paths") else None
+        # Determine media paths and public CDN image URL
+        media_paths = post.get("media_paths", [])
+        image_path = media_paths[0] if media_paths and os.path.exists(str(media_paths[0])) else None
+
+        # Resolve authentic public CDN image URL for Instagram Graph API container
+        pub_image_url = post.get("product_image") or post.get("image_url") or ""
+        if not pub_image_url and post.get("product_id"):
+            try:
+                from core.db import get_products
+                prods = get_products(limit=100)
+                for pr in prods:
+                    if pr.get("id") == post.get("product_id"):
+                        pub_image_url = pr.get("image_url", "")
+                        break
+            except Exception:
+                pass
+
         clean_cap = clean_humanoid_text(f"{post.get('caption', '')}\n\n{post.get('hashtags', '')}")
 
-        # 1. Instagram Publication
-        ig_res = pub.publish_instagram_photo(image_url=image_path or "", caption=clean_cap)
+        # 1. Instagram Publication (Requires public HTTPS image URL)
+        target_ig_img = pub_image_url if pub_image_url.startswith("http") else (image_path or "")
+        ig_res = pub.publish_instagram_photo(image_url=target_ig_img, caption=clean_cap)
 
-        # 2. Facebook Publication (Strictly Cloaked: Never show earnkaro.com directly)
+        # 2. Facebook Publication (Multipart binary photo upload or public image URL)
         fb_link = post.get("affiliate_url", "")
         if "earnkaro.com" in fb_link:
             from tools.affiliate_tagger import AffiliateTagger
             fb_link = AffiliateTagger().cloak_url(fb_link)
-        fb_res = pub.publish_facebook_post(message=clean_cap, link=fb_link)
+        fb_res = pub.publish_facebook_post(
+            message=clean_cap,
+            link=fb_link,
+            image_path=image_path,
+            image_url=pub_image_url if pub_image_url.startswith("http") else None
+        )
 
         # 3. Telegram Deals Broadcast (Clean humanoid text without emojis)
         tg_text = f"Deal Alert: {clean_humanoid_text(post.get('headline', ''))}\n\nDirect link: {fb_link}"
@@ -135,15 +157,14 @@ class MarketerAgent:
         # Update post in DB
         update_post_status(post_id, "published", external_id=ig_res.get("post_id", "sim_1"))
 
-        # Log simulated activity to daily revenue tracker
-        simulated_clicks = random.randint(15, 40)
+        # Log publication event (Real clicks and revenue come from verified affiliate network reports)
         log_daily_revenue(
             log_date_str=time.strftime("%Y-%m-%d"),
             target=500.0,
-            earnings=round(simulated_clicks * 0.05 * 50.0, 2),
-            clicks=simulated_clicks,
-            orders=1 if random.random() > 0.35 else 0,
-            notes=f"Auto-published Post #{post_id} to [{channel_name}]"
+            earnings=0.0,
+            clicks=0,
+            orders=0,
+            notes=f"Auto-published Post #{post_id} to [{channel_name}] (Awaiting network report)"
         )
 
         log_agent_action(
@@ -191,43 +212,43 @@ class MarketerAgent:
         executed_tasks = []
 
         for target in selected_targets:
-            # 1. Action: Like recent post
+            # 1. Action: Like recent post (Dry-run Simulation)
             like_task = {
                 "target_account": f"@{target['account']}",
                 "target_post_url": f"https://instagram.com/p/{target['account']}_recent",
                 "action_type": "like",
-                "content": f"Liked recent post on {target['recent_topic']}",
-                "status": "executed"
+                "content": f"[SIMULATION] Liked recent post on {target['recent_topic']}",
+                "status": "simulated"
             }
             tid1 = save_engagement_task(like_task)
-            update_engagement_task(tid1, "executed")
+            update_engagement_task(tid1, "simulated")
             like_task["id"] = tid1
             executed_tasks.append(like_task)
 
-            # 2. Action: Genuine Humanoid Comment (Zero emojis, zero icons)
+            # 2. Action: Genuine Humanoid Comment (Dry-run Simulation, Zero emojis)
             comment_text = clean_humanoid_text(random.choice(comment_pool))
             comment_task = {
                 "target_account": f"@{target['account']}",
                 "target_post_url": f"https://instagram.com/p/{target['account']}_discussion",
                 "action_type": "comment",
-                "content": comment_text,
-                "status": "executed"
+                "content": f"[SIMULATION] {comment_text}",
+                "status": "simulated"
             }
             tid2 = save_engagement_task(comment_task)
-            update_engagement_task(tid2, "executed")
+            update_engagement_task(tid2, "simulated")
             comment_task["id"] = tid2
             executed_tasks.append(comment_task)
 
-            # 3. Action: Invite / Add engaged prospect to our page
+            # 3. Action: Follower Invitation (Dry-run Simulation)
             invite_task = {
                 "target_account": f"@{target['account']}_follower_{random.randint(100, 999)}",
                 "target_post_url": f"Invited to follow {ch_name}",
                 "action_type": "invite_page_follower",
-                "content": f"Sent page follower invite to active commenter on {target['recent_topic']}",
-                "status": "executed"
+                "content": f"[SIMULATION] Candidate follower for {target['recent_topic']}",
+                "status": "simulated"
             }
             tid3 = save_engagement_task(invite_task)
-            update_engagement_task(tid3, "executed")
+            update_engagement_task(tid3, "simulated")
             invite_task["id"] = tid3
             executed_tasks.append(invite_task)
 
@@ -236,8 +257,9 @@ class MarketerAgent:
 
         log_agent_action(
             self.name,
-            f"Completed {len(executed_tasks)} organic growth actions for [{ch_name}] (Likes, Humanoid Comments, Follower Invites)",
-            "completed"
+            f"[SIMULATION / DRY-RUN] Evaluated {len(executed_tasks)} organic growth targets for [{ch_name}] (Likes, Humanoid Comments, Invites)",
+            "completed",
+            details="Simulation mode: Meta API restricts automated likes/comments on external accounts."
         )
         return executed_tasks
 

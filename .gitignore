@@ -5,9 +5,13 @@ __pycache__/
 
 # Environments & sensitive keys
 .env
+.env.*
+.env.local
 credentials.env
 *.key
 *.pem
+.streamlit/secrets.toml
+.streamlit/secrets*.toml
 
 # Local databases
 data/*.db

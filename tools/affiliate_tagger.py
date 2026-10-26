@@ -14,10 +14,18 @@ from typing import Dict, Any, Optional
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "settings.yaml")
 
 
+PLACEHOLDER_IDS = {"flipkart_aff", "affiliate", "affiliate_partner", "placeholder", ""}
+
+
 class AffiliateTagger:
-    def __init__(self, amazon_tag: str = "tinkukrishnan-21", earnkaro_id: Optional[str] = None, earnkaro_api_key: Optional[str] = None):
-        self.amazon_tag = amazon_tag or "tinkukrishnan-21"
-        self.earnkaro_id = earnkaro_id or earnkaro_api_key
+    def __init__(self, amazon_tag: Optional[str] = None, earnkaro_id: Optional[str] = None, earnkaro_api_key: Optional[str] = None):
+        self.amazon_tag = amazon_tag if amazon_tag is not None else os.getenv("AMAZON_ASSOCIATE_TAG", "tinkukrishnan-21")
+        if earnkaro_id is not None:
+            self.earnkaro_id = earnkaro_id
+        elif earnkaro_api_key is not None:
+            self.earnkaro_id = earnkaro_api_key
+        else:
+            self.earnkaro_id = os.getenv("EARNKARO_API_KEY", os.getenv("EARNKARO_USER_ID", "5736594"))
         self._url_cache: Dict[str, str] = {}
 
         # Built-in and dynamically extensible platform registry
@@ -82,34 +90,38 @@ class AffiliateTagger:
         except Exception as e:
             print(f"Note: Could not load custom platforms from config: {e}")
 
-    def add_platform(self, name: str, domain: str, param: str, tracking_id: str):
+    def add_platform(
+        self,
+        name: str,
+        domain: str,
+        param: str = "tag",
+        tracking_id: Optional[str] = None,
+        key: Optional[str] = None,
+        affiliate_id: Optional[str] = None
+    ):
         """Dynamically registers a new e-commerce store with its affiliate query parameter."""
-        clean_key = name.lower().replace(" ", "_")
+        clean_key = (key or name).lower().replace(" ", "_")
         clean_domain = domain.lower().replace("https://", "").replace("http://", "").split("/")[0]
+        actual_id = (tracking_id or affiliate_id or "affiliate").strip()
 
         data = {
             "name": name,
             "domains": [clean_domain],
             "param": param.strip(),
-            "id": tracking_id.strip(),
+            "id": actual_id,
             "clean_params": []
         }
         self.platforms[clean_key] = data
 
-        # Persist to settings.yaml
+        # Persist to settings.yaml safely
         try:
-            cfg = {}
-            if os.path.exists(CONFIG_PATH):
-                with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                    cfg = yaml.safe_load(f) or {}
-
+            from core.orchestrator import load_settings, save_settings_safely
+            cfg = load_settings()
             if "custom_affiliate_platforms" not in cfg:
                 cfg["custom_affiliate_platforms"] = {}
 
             cfg["custom_affiliate_platforms"][clean_key] = data
-
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
+            save_settings_safely(cfg)
         except Exception as e:
             print(f"Could not persist custom platform: {e}")
 
@@ -133,14 +145,12 @@ class AffiliateTagger:
             asin_match = re.search(r"/(?:dp|gp/product|d)/([A-Z0-9]{10})", raw_url)
             if asin_match:
                 return f"https://www.amazon.in/dp/{asin_match.group(1)}?tag={self.amazon_tag}"
+            parsed = urllib.parse.urlparse(raw_url)
+            query = urllib.parse.parse_qs(parsed.query)
+            query["tag"] = [self.amazon_tag]
+            return urllib.parse.urlunparse(parsed._replace(query=urllib.parse.urlencode(query, doseq=True)))
 
-        # 3. If EarnKaro aggregator is active and not Amazon
-        if self.earnkaro_id and not ("amazon." in raw_lower or "amzn.to" in raw_lower):
-            clean_url = raw_url.split("?")[0]
-            encoded = urllib.parse.quote(clean_url)
-            return f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
-
-        # 4. Match against registered platforms
+        # 3. Match against registered platforms
         parsed = urllib.parse.urlparse(raw_url)
         netloc = parsed.netloc.lower()
 
@@ -154,15 +164,41 @@ class AffiliateTagger:
                 break
 
         if matched_plat and matched_plat.get("param") and matched_plat.get("id"):
-            query = urllib.parse.parse_qs(parsed.query)
-            query[matched_plat["param"]] = [matched_plat["id"]]
-            for cp in matched_plat.get("clean_params", []):
-                query.pop(cp, None)
-            new_query = urllib.parse.urlencode(query, doseq=True)
-            return urllib.parse.urlunparse(parsed._replace(query=new_query))
+            plat_id = str(matched_plat["id"]).strip()
+            # If user configured a real non-placeholder merchant affiliate ID
+            if plat_id and plat_id not in PLACEHOLDER_IDS:
+                query = urllib.parse.parse_qs(parsed.query)
+                query[matched_plat["param"]] = [plat_id]
+                for cp in matched_plat.get("clean_params", []):
+                    query.pop(cp, None)
+                new_query = urllib.parse.urlencode(query, doseq=True)
+                return urllib.parse.urlunparse(parsed._replace(query=new_query))
+            else:
+                # Platform has a placeholder ID (e.g. flipkart_aff)
+                # Route through EarnKaro aggregator if available so clicks earn real commissions!
+                if self.earnkaro_id:
+                    clean_url = raw_url.split("?")[0]
+                    encoded = urllib.parse.quote(clean_url)
+                    return f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
+                # If no EarnKaro, return clean merchant URL without fake placeholder parameters
+                clean_query = urllib.parse.parse_qs(parsed.query)
+                for cp in matched_plat.get("clean_params", []):
+                    clean_query.pop(cp, None)
+                new_query = urllib.parse.urlencode(clean_query, doseq=True)
+                return urllib.parse.urlunparse(parsed._replace(query=new_query))
 
-        # Fallback default parameter
-        return f"{raw_url}&tag={self.amazon_tag}" if "?" in raw_url else f"{raw_url}?tag={self.amazon_tag}"
+        # 4. If EarnKaro aggregator is active and not Amazon
+        if self.earnkaro_id and not ("amazon." in raw_lower or "amzn.to" in raw_lower):
+            clean_url = raw_url.split("?")[0]
+            encoded = urllib.parse.quote(clean_url)
+            return f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
+
+        # 5. Clean Fallback: If domain is Amazon, ensure tag is present
+        if "amazon." in netloc or "amzn" in netloc:
+            return f"{raw_url}&tag={self.amazon_tag}" if "?" in raw_url else f"{raw_url}?tag={self.amazon_tag}"
+
+        # For any unknown 3rd-party store, return clean URL as-is (NEVER append &tag=)
+        return raw_url
 
     tag_url = convert_url
 
@@ -172,7 +208,7 @@ class AffiliateTagger:
         and tracking metadata. Zero TinyURL dependency.
         """
         if not raw_url:
-            return {"public_url": "", "raw_tracking_url": "", "is_cloaked": False}
+            return {"public_url": "", "raw_tracking_url": "", "is_cloaked": False, "link_type": "empty"}
 
         raw_lower = raw_url.lower()
 
@@ -197,20 +233,15 @@ class AffiliateTagger:
                     "link_type": "amazon_canonical"
                 }
 
-        # 3. EarnKaro aggregator
-        if self.earnkaro_id and not ("amazon." in raw_lower or "amzn.to" in raw_lower):
-            clean_url = raw_url.split("?")[0]
-            encoded = urllib.parse.quote(clean_url)
-            raw_ek = f"https://earnkaro.com?r={self.earnkaro_id}&link={encoded}"
-            return {
-                "public_url": raw_ek,
-                "raw_tracking_url": raw_ek,
-                "is_cloaked": False,
-                "link_type": "earnkaro"
-            }
-
-        pub = self.convert_url(raw_url, platform)
-        return {"public_url": pub, "raw_tracking_url": pub, "is_cloaked": False, "link_type": "direct"}
+        # 3. Check registered platforms or EarnKaro
+        conv = self.convert_url(raw_url, platform)
+        l_type = "earnkaro" if "earnkaro.com" in conv else ("direct" if conv != raw_url else "clean")
+        return {
+            "public_url": conv,
+            "raw_tracking_url": conv,
+            "is_cloaked": False,
+            "link_type": l_type
+        }
 
     def get_disclosure_text(self) -> str:
         return "#ad #affiliate #commissionsearned #dealsindia"

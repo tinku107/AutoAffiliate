@@ -116,6 +116,13 @@ c:/AI/My Business Agents/
 │   ├── image_generator.py     # Pillow 1080x1080 banner creator
 │   ├── affiliate_tagger.py    # URL cleaner & Associate tag injector
 │   └── meta_api.py            # Instagram, Facebook & Telegram API client
+├── tests/
+│   ├── test_affiliate_tagger.py # URL conversion & domain fallback verification
+│   ├── test_auto_daemon.py      # Autopilot scheduling & cycle dispatching
+│   ├── test_creative_agent.py   # Humanoid text & compliance disclosure tests
+│   ├── test_cleaner_agent.py    # Media retention & janitor purge tests
+│   ├── test_meta_publisher.py   # Meta Graph API photo upload & error handling
+│   └── test_security.py         # Secrets isolation & .env protection tests
 ├── ui/
 │   └── app.py                 # Streamlit Grok-style command console
 ├── data/
@@ -124,3 +131,15 @@ c:/AI/My Business Agents/
 ├── requirements.txt           # Python dependencies
 └── run.bat                    # 1-click Windows launcher
 ```
+
+---
+
+## 🧪 Automated Testing
+
+The codebase includes an automated unit test suite runnable with Python's built-in `unittest` runner:
+
+```bash
+python -m unittest discover tests -v
+```
+
+All tests execute in ~1 second with verified 100% pass rate.

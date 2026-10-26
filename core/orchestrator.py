@@ -24,7 +24,97 @@ from core.db import (
     clear_discarded_history
 )
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "settings.yaml")
+
+
+def sanitize_config_for_disk(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Ensures sensitive secrets (access tokens, API keys) are never persisted into settings.yaml."""
+    import copy
+    clean = copy.deepcopy(cfg)
+    if "ai" in clean and isinstance(clean["ai"], dict):
+        clean["ai"]["gemini_api_key"] = ""
+    if "channel_profiles" in clean and isinstance(clean["channel_profiles"], list):
+        for p in clean["channel_profiles"]:
+            if isinstance(p, dict):
+                p["meta_access_token"] = ""
+                p["meta_user_token"] = ""
+                p["telegram_bot_token"] = ""
+    return clean
+
+
+def save_settings_safely(cfg: Dict[str, Any], path: str = CONFIG_PATH) -> bool:
+    """Saves configuration to disk while guaranteeing secrets are stripped."""
+    try:
+        sanitized = sanitize_config_for_disk(cfg)
+        with open(path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(sanitized, f, default_flow_style=False, sort_keys=False)
+        return True
+    except Exception as e:
+        print(f"Error saving settings safely: {e}")
+        return False
+
+
+def load_settings(path: str = CONFIG_PATH) -> Dict[str, Any]:
+    """Loads configuration and merges secrets from .env environment variables."""
+    load_dotenv()
+    cfg = {}
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+        except Exception as e:
+            print(f"Error loading {path}: {e}")
+            cfg = {}
+
+    meta_token = os.getenv("META_ACCESS_TOKEN", "")
+    meta_user_token = os.getenv("META_USER_TOKEN", "")
+    meta_page_id = os.getenv("META_PAGE_ID", "")
+    ig_user = os.getenv("INSTAGRAM_USERNAME", "")
+    amz_tag = os.getenv("AMAZON_ASSOCIATE_TAG", "")
+    ek_key = os.getenv("EARNKARO_API_KEY", "")
+    ek_user = os.getenv("EARNKARO_USER_ID", "")
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
+    tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    tg_channel = os.getenv("TELEGRAM_CHANNEL_ID", "")
+
+    # Inject into channel profiles
+    profiles = cfg.get("channel_profiles", [])
+    for p in profiles:
+        if p.get("id") == "elenas_world":
+            if meta_token and not p.get("meta_access_token"):
+                p["meta_access_token"] = meta_token
+            if meta_user_token and not p.get("meta_user_token"):
+                p["meta_user_token"] = meta_user_token
+            if meta_page_id and not p.get("facebook_page_id"):
+                p["facebook_page_id"] = meta_page_id
+            if ig_user and not p.get("instagram_username"):
+                p["instagram_username"] = ig_user
+            if tg_token and not p.get("telegram_bot_token"):
+                p["telegram_bot_token"] = tg_token
+            if tg_channel and not p.get("telegram_channel_id"):
+                p["telegram_channel_id"] = tg_channel
+
+    # Inject into affiliate
+    if "affiliate" not in cfg:
+        cfg["affiliate"] = {}
+    if amz_tag and not cfg["affiliate"].get("amazon_associate_tag"):
+        cfg["affiliate"]["amazon_associate_tag"] = amz_tag
+    if ek_key and not cfg["affiliate"].get("earnkaro_api_key"):
+        cfg["affiliate"]["earnkaro_api_key"] = ek_key
+    if ek_user and not cfg["affiliate"].get("earnkaro_user_id"):
+        cfg["affiliate"]["earnkaro_user_id"] = ek_user
+
+    # Inject into AI
+    if "ai" not in cfg:
+        cfg["ai"] = {}
+    if gemini_key and not cfg["ai"].get("gemini_api_key"):
+        cfg["ai"]["gemini_api_key"] = gemini_key
+
+    return cfg
 
 
 class AgentOrchestrator:
@@ -45,13 +135,13 @@ class AgentOrchestrator:
         self.test_counter = 0
 
     def _load_config(self) -> Dict[str, Any]:
-        if os.path.exists(CONFIG_PATH):
-            try:
-                with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                    return yaml.safe_load(f) or {}
-            except Exception:
-                pass
-        return {}
+        return load_settings()
+
+    def _save_config(self, cfg: Dict[str, Any]) -> bool:
+        res = save_settings_safely(cfg)
+        if res:
+            self.config = cfg
+        return res
 
     def set_daily_target(self, new_target: float):
         """Allows user to dynamically change daily profit target X anytime."""
@@ -61,8 +151,7 @@ class AgentOrchestrator:
             if "app" not in cfg:
                 cfg["app"] = {}
             cfg["app"]["daily_revenue_target_inr"] = self.daily_target_inr
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
+            self._save_config(cfg)
             log_agent_action("Orchestrator", f"Updated daily profit target to INR {self.daily_target_inr}", "completed")
         except Exception as e:
             print(f"Could not update target in config: {e}")
@@ -90,9 +179,7 @@ class AgentOrchestrator:
         cfg = self._load_config()
         cfg["channel_mode"] = mode
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
-            self.config = cfg
+            self._save_config(cfg)
             log_agent_action("Orchestrator", f"Channel mode switched to: {mode}", "completed")
         except Exception as e:
             print(f"Error saving channel mode: {e}")
@@ -112,9 +199,7 @@ class AgentOrchestrator:
         cfg = self._load_config()
         cfg["active_profile_id"] = profile_id
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
-            self.config = cfg
+            self._save_config(cfg)
             p = self.get_active_profile()
             log_agent_action("Orchestrator", f"Active channel profile changed to: {p.get('name')}", "completed")
         except Exception as e:
@@ -139,9 +224,7 @@ class AgentOrchestrator:
                 break
         cfg["channel_profiles"] = profiles
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
-            self.config = cfg
+            self._save_config(cfg)
             status_str = "ENABLED" if enabled else "DISABLED"
             log_agent_action("Orchestrator", f"Channel profile #{profile_id} autopilot {status_str}", "completed")
         except Exception as e:
@@ -167,9 +250,7 @@ class AgentOrchestrator:
 
         cfg["channel_profiles"] = profiles
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
-            self.config = cfg
+            self._save_config(cfg)
             log_agent_action("Orchestrator", f"Saved channel profile: {profile_data.get('name')}", "completed")
         except Exception as e:
             print(f"Error saving profile: {e}")
@@ -185,9 +266,7 @@ class AgentOrchestrator:
         if cfg.get("active_profile_id") == profile_id:
             cfg["active_profile_id"] = new_profiles[0]["id"]
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
-            self.config = cfg
+            self._save_config(cfg)
             log_agent_action("Orchestrator", f"Deleted channel profile #{profile_id}", "completed")
             return True
         except Exception as e:
@@ -253,9 +332,7 @@ class AgentOrchestrator:
             mappings.append(mapping_data)
         cfg["niche_mappings"] = mappings
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
-            self.config = cfg
+            self._save_config(cfg)
             log_agent_action("Orchestrator", f"Saved niche mapping: {mapping_data.get('name')} -> {mapping_data.get('mapped_account_id')}", "completed")
         except Exception as e:
             print(f"Error saving niche mapping: {e}")
@@ -267,9 +344,7 @@ class AgentOrchestrator:
         new_mappings = [m for m in mappings if m.get("id") != niche_id]
         cfg["niche_mappings"] = new_mappings
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
-            self.config = cfg
+            self._save_config(cfg)
             log_agent_action("Orchestrator", f"Deleted niche mapping #{niche_id}", "completed")
             return True
         except Exception as e:
@@ -298,9 +373,7 @@ class AgentOrchestrator:
         if clean_profiles:
             cfg["channel_profiles"] = clean_profiles
             try:
-                with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                    yaml.safe_dump(cfg, f, default_flow_style=False)
-                self.config = cfg
+                self._save_config(cfg)
                 log_agent_action("Orchestrator", f"Bulk updated {len(clean_profiles)} channel profiles from table editor", "completed")
                 return True
             except Exception as e:
@@ -327,14 +400,13 @@ class AgentOrchestrator:
         if clean_mappings:
             cfg["niche_mappings"] = clean_mappings
             try:
-                with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                    yaml.safe_dump(cfg, f, default_flow_style=False)
-                self.config = cfg
+                self._save_config(cfg)
                 log_agent_action("Orchestrator", f"Bulk updated {len(clean_mappings)} niche mappings from table editor", "completed")
                 return True
             except Exception as e:
                 print(f"Error bulk saving niche mappings: {e}")
                 return False
+        return False
         return False
 
     def bulk_save_platforms(self, platforms_list: List[Dict[str, Any]]) -> bool:

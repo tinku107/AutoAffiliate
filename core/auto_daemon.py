@@ -28,8 +28,13 @@ from core.db import log_agent_action, get_posts
 
 
 class AutonomousAgentDaemon:
-    def __init__(self, min_interval_minutes: int = 90, max_interval_minutes: int = 210):
-        self.orchestrator = AgentOrchestrator()
+    def __init__(
+        self,
+        min_interval_minutes: int = 90,
+        max_interval_minutes: int = 210,
+        orchestrator: Optional[Any] = None
+    ):
+        self.orchestrator = orchestrator or AgentOrchestrator()
         self.min_interval_minutes = min_interval_minutes
         self.max_interval_minutes = max_interval_minutes
         self.is_running = False
@@ -59,15 +64,14 @@ class AutonomousAgentDaemon:
         enabled_profiles = self.orchestrator.get_enabled_autopilot_profiles()
         if not enabled_profiles:
             log_agent_action("AutoDaemon", "No channels currently enabled for Autopilot. Pausing cycle.", "warning")
-            # 5. Routine Janitor Run: Automatically purge published media files older than 24 hours (1 day)
-        try:
-            purge_res = self.orchestrator.cleaner.clean_expired_published_media()
-            if purge_res.get("files_deleted", 0) > 0:
-                log_agent_action("AutoDaemon", f"Janitor Purge: Reclaimed {purge_res.get('freed_mb', 0)} MB from published media >24h.", "completed")
-        except Exception as e:
-            print(f"Janitor daemon cleanup note: {e}")
-
-        return {"success": False, "reason": "No channels enabled"}
+            # Routine Janitor Run: Automatically purge published media files older than 24 hours
+            try:
+                purge_res = self.orchestrator.cleaner.clean_expired_published_media()
+                if isinstance(purge_res, dict) and int(purge_res.get("files_deleted", 0) or 0) > 0:
+                    log_agent_action("AutoDaemon", f"Janitor Purge: Reclaimed {purge_res.get('freed_mb', 0)} MB from published media >24h.", "completed")
+            except Exception as e:
+                print(f"Janitor daemon cleanup note: {e}")
+            return {"success": False, "reason": "No channels enabled"}
 
         self.cycle_count += 1
         self.last_run_time = datetime.now()
@@ -154,6 +158,14 @@ class AutonomousAgentDaemon:
 
             except Exception as e:
                 log_agent_action("AutoDaemon", f"Error processing [{prof_name}]: {str(e)}", "failed")
+
+        # Post-cycle maintenance: Purge published media older than retention threshold
+        try:
+            purge_res = self.orchestrator.cleaner.clean_expired_published_media()
+            if isinstance(purge_res, dict) and int(purge_res.get("files_deleted", 0) or 0) > 0:
+                log_agent_action("AutoDaemon", f"Janitor Purge: Reclaimed {purge_res.get('freed_mb', 0)} MB from published media >24h.", "completed")
+        except Exception as e:
+            print(f"Janitor daemon cleanup note: {e}")
 
         return {
             "success": True,

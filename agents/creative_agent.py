@@ -22,6 +22,10 @@ def clean_humanoid_text(text: str) -> str:
     """
     if not text:
         return ""
+    import unicodedata
+    # Normalize fancy alphanumeric unicode fonts (bold, gothic, italic) to standard text
+    text = unicodedata.normalize("NFKD", text)
+
     # Remove emoji ranges
     emoji_pattern = re.compile(
         r"[\U00010000-\U0010ffff]|[\u2600-\u27ff]|[\u2300-\u23ff]|[\u2b50-\u2b55]|[\u200d]|[\ufe0f]",
@@ -169,6 +173,10 @@ class CreativeAgent:
             feature_summary = "Very functional design, easy to set up, and well rated by customers who purchased it."
             use_case = "Simple, durable, and genuinely convenient for regular daily use."
             hashtags = "#deals #usefulfinds #smartshopping #qualityfinds #onlineshopping"
+
+        # Mandatory compliance disclosure tags (ASCI & Amazon Associates requirement)
+        if "#ad" not in hashtags:
+            hashtags = f"#ad #affiliate {hashtags}".strip()
 
         headline = random.choice(hooks)
 

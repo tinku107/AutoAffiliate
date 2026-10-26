@@ -630,9 +630,8 @@ with st.sidebar:
             cfg["app"] = {}
         cfg["app"]["theme_mode"] = new_theme
         try:
-            from core.orchestrator import CONFIG_PATH
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, default_flow_style=False)
+            from core.orchestrator import save_settings_safely
+            save_settings_safely(cfg)
         except Exception:
             pass
         st.rerun()
@@ -890,6 +889,66 @@ if nav_selection == "📊 Executive Dashboard":
             bulk_save_daily_revenue(edited_rev_df.to_dict("records"))
             st.success("Revenue log saved successfully!")
             st.rerun()
+
+    with st.expander("📥 Import Official Network Reports (Amazon Associates / EarnKaro CSV)"):
+        st.markdown("""
+        Upload official statements downloaded directly from **Amazon Associates Central** or **EarnKaro**.
+        The importer automatically maps Dates, Clicks, Orders, and Earnings directly into your verified revenue log.
+        """)
+        csv_file = st.file_uploader("Select Statement CSV File", type=["csv"], key="revenue_csv_uploader")
+        if csv_file is not None:
+            try:
+                uploaded_df = pd.read_csv(csv_file)
+                st.caption(f"Detected columns: `{', '.join([str(c) for c in uploaded_df.columns])}`")
+
+                col_map = {}
+                for c in uploaded_df.columns:
+                    c_clean = str(c).strip().lower().replace(" ", "_")
+                    if "date" in c_clean and "log_date" not in col_map:
+                        col_map["log_date"] = c
+                    elif any(k in c_clean for k in ["earning", "fee", "revenue", "commission"]) and "estimated_earnings_inr" not in col_map:
+                        col_map["estimated_earnings_inr"] = c
+                    elif any(k in c_clean for k in ["click", "traffic"]) and "clicks" not in col_map:
+                        col_map["clicks"] = c
+                    elif any(k in c_clean for k in ["order", "shipped", "conversion", "item"]) and "orders" not in col_map:
+                        col_map["orders"] = c
+
+                if "log_date" in col_map and ("estimated_earnings_inr" in col_map or "clicks" in col_map):
+                    imported_records = []
+                    for _, row in uploaded_df.iterrows():
+                        raw_d = str(row[col_map["log_date"]]).strip()
+                        try:
+                            parsed_d = pd.to_datetime(raw_d).strftime("%Y-%m-%d")
+                        except Exception:
+                            parsed_d = raw_d[:10]
+
+                        def parse_num(val):
+                            try:
+                                return float(str(val).replace("₹", "").replace("$", "").replace(",", "").strip())
+                            except Exception:
+                                return 0.0
+
+                        earns = parse_num(row.get(col_map.get("estimated_earnings_inr", ""), 0))
+                        clks = int(parse_num(row.get(col_map.get("clicks", ""), 0)))
+                        ords = int(parse_num(row.get(col_map.get("orders", ""), 0)))
+
+                        imported_records.append({
+                            "log_date": parsed_d,
+                            "target_inr": float(current_target),
+                            "estimated_earnings_inr": earns,
+                            "clicks": clks,
+                            "orders": ords,
+                            "notes": "Imported from official affiliate report"
+                        })
+
+                    if st.button(f"📥 Import {len(imported_records)} Verified Records into Database", key="btn_apply_csv_revenue"):
+                        bulk_save_daily_revenue(imported_records)
+                        st.success(f"Successfully imported {len(imported_records)} verified records!")
+                        st.rerun()
+                else:
+                    st.warning("Could not automatically map Date, Clicks, or Earnings columns. Ensure CSV has Date, Clicks, Orders, or Earnings.")
+            except Exception as ex:
+                st.error(f"Error parsing uploaded CSV: {ex}")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1328,7 +1387,7 @@ elif nav_selection == "🤖 Autonomous Autopilot":
             • <b>Dynamic Timing:</b> No fixed schedule (static 12:30/18:30 removed). Next run dynamically picked between 90m to 210m with random jitter.<br>
             • <b>Autonomous Selection & Blacklist Shield:</b> When running, Autopilot autonomously selects top-performing deals while strictly skipping any product you discarded in the sandbox.<br>
             • <b>Humanoid Content:</b> 100% clean copy with ZERO emojis and ZERO special characters.<br>
-            • <b>Organic Growth:</b> Finds new people daily, likes recent posts, leaves authentic comments, and invites high-intent users.<br>
+            • <b>Organic Growth Radar (Dry-Run Preview):</b> Discovers candidate niche audience profiles and drafts authentic comments for review (Meta restricts unauthorized third-party bots from auto-liking/commenting directly on external users).<br>
             • <b>Telemetry:</b> Completed Cycle #{daemon.cycle_count} • Last run: {last_str} • Next dynamic window: {next_str}
         </div>
     </div>
@@ -1701,9 +1760,8 @@ elif nav_selection == "⚙️ Global Settings & Compliance":
             glob_cfg["app"]["daily_revenue_target_inr"] = float(g_target)
             st.session_state.orchestrator.set_daily_target(float(g_target))
 
-            from core.orchestrator import CONFIG_PATH
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                yaml.safe_dump(glob_cfg, f, default_flow_style=False)
+            from core.orchestrator import save_settings_safely
+            save_settings_safely(glob_cfg)
             st.success("Global settings saved successfully!")
             st.rerun()
 

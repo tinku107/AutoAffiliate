@@ -6,6 +6,7 @@ Responsible for:
 4. Strict anti-bot/anti-spam protection with randomized human jitter and zero emojis/icons.
 """
 
+import os
 import time
 import random
 import re
@@ -26,6 +27,8 @@ def clean_humanoid_text(text: str) -> str:
     """Strips emojis and special characters to ensure 100% humanoid clean text."""
     if not text:
         return ""
+    import unicodedata
+    text = unicodedata.normalize("NFKD", text)
     emoji_pattern = re.compile(
         r"[\U00010000-\U0010ffff]|[\u2600-\u27ff]|[\u2300-\u23ff]|[\u2b50-\u2b55]|[\u200d]|[\ufe0f]",
         flags=re.UNICODE

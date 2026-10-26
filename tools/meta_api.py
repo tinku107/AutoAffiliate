@@ -28,8 +28,31 @@ class MetaPublisher:
         """Returns True if Meta API credentials are provided."""
         return bool(self.access_token and (self.ig_user_id or self.fb_page_id))
 
+    def _resolve_ig_user_id(self) -> Optional[str]:
+        """Auto-discovers connected Instagram Business Account ID from the Facebook Page."""
+        if self.ig_user_id:
+            return self.ig_user_id
+        if self.access_token and self.fb_page_id:
+            try:
+                res = requests.get(
+                    f"https://graph.facebook.com/v19.0/{self.fb_page_id}",
+                    params={"fields": "instagram_business_account", "access_token": self.access_token},
+                    timeout=10
+                )
+                data = res.json()
+                ig_id = data.get("instagram_business_account", {}).get("id")
+                if ig_id:
+                    self.ig_user_id = str(ig_id)
+                    return self.ig_user_id
+            except Exception:
+                pass
+        return None
+
     def publish_instagram_photo(self, image_url: str, caption: str) -> Dict[str, Any]:
         """Publishes an image post to Instagram Business Account via Meta Graph API."""
+        if not self.ig_user_id:
+            self._resolve_ig_user_id()
+
         if not self.is_configured() or not self.ig_user_id:
             # Simulation / Dry-run Mode for immediate testing
             simulated_id = f"ig_sim_{int(time.time())}_{random.randint(100, 999)}"
@@ -37,7 +60,7 @@ class MetaPublisher:
                 "success": True,
                 "mode": "simulation",
                 "post_id": simulated_id,
-                "message": "Post successfully verified and simulated (Add META_ACCESS_TOKEN and INSTAGRAM_ACCOUNT_ID in .env to publish live to Meta servers)."
+                "message": "Post successfully verified and simulated (Add active META_ACCESS_TOKEN and connect Instagram to your Facebook Page to publish live to Meta servers)."
             }
 
         if not (image_url.startswith("http://") or image_url.startswith("https://")):

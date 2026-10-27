@@ -1447,7 +1447,7 @@ elif nav_selection == "⚡ Live Product Sandbox":
         test_query = st.text_input("Or Custom Search Query", placeholder="e.g. iPhone 16, Men linen shirt, Anarkali kurti")
     with t_btn_col:
         st.markdown("<br>", unsafe_allow_html=True)
-        run_btn = st.button("⚡ Test Next Product Now", use_container_width=True)
+        run_btn = st.button("🔍 Find Another Product", use_container_width=True, type="primary", key="btn_find_another_top_bar")
 
     if run_btn:
         with st.spinner(f"Scout & Creative bots fetching next deal in '{test_query or test_cat}'..."):
@@ -1484,10 +1484,29 @@ elif nav_selection == "⚡ Live Product Sandbox":
         st.divider()
         hl_color = "#0284c7" if is_light else "#38bdf8"
         chk_color = "#15803d" if is_light else "#34d399"
-        st.markdown(f"### 🔍 Live Test Results — <span style='color:{hl_color};'>[{p.get('platform')}] {p['title'][:50]}</span> (Test #{t_num})", unsafe_allow_html=True)
-        st.markdown(f"<span style='color:{chk_color}; font-weight:600;'>✓ 100% Humanoid Copy Verified: Zero emojis & Zero special characters</span>", unsafe_allow_html=True)
 
-        r_img_col, r_info_col = st.columns([1.5, 2.5])
+        # Top Bar inside Preview Card: Product Headline + "Find Another Product" Button
+        p_hdr_col1, p_hdr_col2 = st.columns([3, 1.4])
+        with p_hdr_col1:
+            st.markdown(f"### 🔍 Live Test Results — <span style='color:{hl_color};'>[{p.get('platform')}] {p['title'][:50]}</span> (Test #{t_num})", unsafe_allow_html=True)
+            st.markdown(f"<span style='color:{chk_color}; font-weight:600;'>✓ 100% Humanoid Copy Verified: Zero emojis & Zero special characters</span>", unsafe_allow_html=True)
+        with p_hdr_col2:
+            find_another_prod = st.button("🔍 Find Another Product", key="btn_find_another_product_top", use_container_width=True, help="Fetch and review a different fresh product right now")
+            if find_another_prod:
+                with st.spinner(f"Scouting next live product in '{test_query or test_cat}'..."):
+                    res = st.session_state.orchestrator.test_next_product(
+                        category=test_cat,
+                        query=test_query if test_query else None,
+                        platform=test_platform
+                    )
+                    if res.get("success"):
+                        st.session_state.last_test_result = res
+                        st.toast(f"✅ Picked new product: {res['product']['title'][:30]}", icon="🔍")
+                        st.rerun()
+                    else:
+                        st.error(res.get("error", "Failed to retrieve next product."))
+
+        r_img_col, r_info_col = st.columns([1.6, 2.4])
         with r_img_col:
             v_path = pst.get("video_path")
             if v_path and os.path.exists(v_path):
@@ -1495,17 +1514,43 @@ elif nav_selection == "⚡ Live Product Sandbox":
                 st.caption("🎬 9:16 AI Reel (With Neural Voiceover)")
 
             media = pst.get("media_paths", [])
-            if media:
-                if len(media) == 1 and os.path.exists(media[0]):
-                    st.image(media[0], caption="Generated 1080x1080 Banner", use_container_width=True)
+            if isinstance(media, str):
+                try:
+                    import json
+                    media = json.loads(media)
+                except Exception:
+                    media = [media] if media else []
+
+            # Multi-Tab Image Preview: Social Media Graphic & Direct Authentic Store Photo
+            img_tabs = st.tabs(["🖼️ Social Graphic", "📸 Direct Store Photo"])
+
+            with img_tabs[0]:
+                valid_media = [m for m in media if os.path.exists(m)]
+                if valid_media:
+                    if len(valid_media) == 1:
+                        st.image(valid_media[0], caption="Generated 1080x1080 Asset", use_container_width=True)
+                    else:
+                        st.image(valid_media[0], caption="Hero Slide 1", use_container_width=True)
+                        with st.expander(f"📸 View All {len(valid_media)} Carousel Slides", expanded=False):
+                            c_cols = st.columns(min(len(valid_media), 4))
+                            for idx, (m_path, c_col) in enumerate(zip(valid_media, c_cols)):
+                                c_col.image(m_path, caption=f"Slide {idx+1}", use_container_width=True)
+                elif p.get("image_url"):
+                    st.image(p["image_url"], caption=f"Store Photo: {p.get('platform')}", use_container_width=True)
                 else:
-                    st.write(f"📸 **Multi-Image Carousel ({len(media)} Angles):**")
-                    cols = st.columns(min(len(media), 4))
-                    for idx, (m_path, col) in enumerate(zip(media, cols)):
-                        if os.path.exists(m_path):
-                            col.image(m_path, caption=f"Slide {idx+1}", use_container_width=True)
-            elif p.get("image_url"):
-                st.image(p["image_url"], use_container_width=True)
+                    st.info("Product visual is ready.")
+
+            with img_tabs[1]:
+                raw_img = p.get("image_url", "")
+                raw_gallery = p.get("image_urls", [])
+                if raw_img:
+                    st.image(raw_img, caption=f"Direct Scraped Photo ({p.get('platform', 'Store')})", use_container_width=True)
+                if isinstance(raw_gallery, list) and len(raw_gallery) > 1:
+                    with st.expander(f"📸 {len(raw_gallery)} Additional Store Angles", expanded=False):
+                        g_cols = st.columns(min(len(raw_gallery), 4))
+                        for idx, (g_url, g_col) in enumerate(zip(raw_gallery, g_cols)):
+                            if g_url:
+                                g_col.image(g_url, caption=f"Angle {idx+1}", use_container_width=True)
 
             st.metric("Deal Price", f"₹{int(p['deal_price']):,}", f"-{int(p['discount_pct'])}% OFF")
             st.metric("Est. Commission", f"₹{p.get('est_comm_per_sale', 0)} / sale", f"~{p.get('units_to_goal', 1)} sales to hit ₹{current_target:,.0f}")
@@ -1528,29 +1573,38 @@ elif nav_selection == "⚡ Live Product Sandbox":
                 st.code(pst.get('reel_script', ''), language="markdown")
 
             target_account = st.session_state.orchestrator.get_active_profile()
-            act_col1, act_col2, act_col3 = st.columns([1.6, 1.2, 1.2])
+
+            # Two Main Equal-Sized Action Buttons: Approve & Post vs Reject
+            act_col1, act_col2 = st.columns(2)
             with act_col1:
-                if st.button(f"🚀 Publish to [{target_account.get('name')}]", use_container_width=True, type="primary"):
-                    with st.spinner("Publishing across Meta & Telegram..."):
+                if st.button("✅ Approve & Post", use_container_width=True, type="primary", key="btn_approve_and_post", help="Approve this product and immediately publish live to Facebook and Instagram."):
+                    with st.spinner(f"Publishing to {target_account.get('name', 'Elena')} on Meta & Telegram..."):
                         pub_res = st.session_state.orchestrator.marketer.publish_approved_post(pst, channel_profile=target_account)
-                        st.success("Test post published successfully!")
+                        ig_id = pub_res.get("instagram", {}).get("post_id")
+                        fb_id = pub_res.get("facebook", {}).get("post_id")
+                        ig_err = pub_res.get("instagram", {}).get("error")
+                        fb_err = pub_res.get("facebook", {}).get("error")
+
+                        if ig_id or fb_id:
+                            st.success(f"Post successfully published! (Facebook: {fb_id or 'Simulated'}, Instagram: {ig_id or 'Simulated'})")
+                            st.toast("✅ Published to Facebook and Instagram!", icon="🚀")
+                        elif fb_err or ig_err:
+                            st.warning(f"Meta publication status: Facebook: {fb_err or 'OK'} | Instagram: {ig_err or 'OK'}")
+                        else:
+                            st.success("Test post published successfully!")
+                        st.rerun()
+
             with act_col2:
-                if st.button("🗑️ Discard & Remove", use_container_width=True, help="Dislike this product? Remove it immediately. Autopilot and Sandbox will never select it again."):
+                if st.button("❌ Reject", use_container_width=True, key="btn_reject_product", help="Reject this product. It will be discarded and AutoAffiliate will immediately pick the next product."):
                     st.session_state.orchestrator.discard_product(p.get("product_id"), db_id=p.get("id"))
-                    st.session_state.last_test_result = None
-                    st.toast(f"🗑️ Discarded '{p.get('title')[:30]}...'. Blacklisted from future suggestions.", icon="🚫")
-                    st.rerun()
-            with act_col3:
-                if st.button("🔄 Discard & Next", use_container_width=True, help="Remove this product and immediately scout & generate the next deal"):
-                    st.session_state.orchestrator.discard_product(p.get("product_id"), db_id=p.get("id"))
-                    with st.spinner("Discarded! Fetching next live deal..."):
+                    with st.spinner("Product rejected! Finding next product..."):
                         res = st.session_state.orchestrator.test_next_product(
                             category=test_cat,
                             query=test_query if test_query else None,
                             platform=test_platform
                         )
                         st.session_state.last_test_result = res if res.get("success") else None
-                        st.toast("Disliked item removed! Next deal loaded.", icon="🔄")
+                        st.toast(f"❌ Rejected '{p.get('title')[:30]}'. Next product loaded!", icon="🔄")
                         st.rerun()
 
 
@@ -1631,17 +1685,35 @@ elif nav_selection == "📱 Content & Media Library":
                         if vp and os.path.exists(vp):
                             st.video(vp)
                         media = post.get("media_paths", [])
-                        if media and os.path.exists(media[0]):
+                        if isinstance(media, str):
+                            try:
+                                import json
+                                media = json.loads(media)
+                            except Exception:
+                                media = [media] if media else []
+                        if media and os.path.exists(str(media[0])):
                             st.image(media[0], use_container_width=True)
+                        elif post.get("product_image"):
+                            st.image(post["product_image"], use_container_width=True)
 
                         status_color = "#15803d" if (is_light and post["status"] == "published") else ("#34d399" if post["status"] == "published" else "#f59e0b")
                         st.markdown(f"**Status:** <span style='color:{status_color}; font-weight:bold;'>{post['status'].upper()}</span>", unsafe_allow_html=True)
                         if post["status"] != "published":
                             target_account = st.session_state.orchestrator.get_active_profile()
-                            if st.button(f"🚀 Approve & Publish", key=f"lib_pub_{post['id']}", use_container_width=True):
-                                with st.spinner("Publishing..."):
-                                    res = st.session_state.orchestrator.marketer.publish_approved_post(post, channel_profile=target_account)
-                                    st.success("Post successfully published!")
+                            col_lib_a, col_lib_r = st.columns(2)
+                            with col_lib_a:
+                                if st.button(f"✅ Approve & Post", key=f"lib_pub_{post['id']}", use_container_width=True, type="primary"):
+                                    with st.spinner("Publishing across Meta & Telegram..."):
+                                        res = st.session_state.orchestrator.marketer.publish_approved_post(post, channel_profile=target_account)
+                                        st.success("Post successfully published!")
+                                        st.rerun()
+                            with col_lib_r:
+                                if st.button(f"❌ Reject", key=f"lib_rej_{post['id']}", use_container_width=True):
+                                    from core.db import update_post_status, discard_product_in_db
+                                    update_post_status(post["id"], "archived")
+                                    if post.get("product_id"):
+                                        discard_product_in_db(str(post["product_id"]))
+                                    st.toast(f"Post #{post['id']} rejected and archived.", icon="❌")
                                     st.rerun()
 
                     with cp_col2:

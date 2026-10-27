@@ -6,6 +6,7 @@ Zero AI/bot mentions: clean, professional, human-curator aesthetic.
 import os
 import io
 import re
+import base64
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from typing import Dict, Any, List, Optional
@@ -74,18 +75,107 @@ class ImageGenerator:
         return None
 
     def _fetch_image(self, url: str) -> Optional[Image.Image]:
-        """Safely downloads an image with browser headers."""
-        if not url:
+        """Safely downloads or opens an image with full browser headers and scheme support."""
+        if not url or not isinstance(url, str):
             return None
+        clean_u = url.strip()
+        if not clean_u:
+            return None
+
+        # 1. Local file path check
         try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-            resp = requests.get(url, headers=headers, timeout=8)
-            if resp.status_code == 200:
-                return Image.open(io.BytesIO(resp.content)).convert("RGB")
+            if os.path.exists(clean_u):
+                return Image.open(clean_u).convert("RGB")
         except Exception:
             pass
+
+        # 2. Protocol relative URL support
+        if clean_u.startswith("//"):
+            clean_u = "https:" + clean_u
+
+        # 3. Base64 data URI support
+        if clean_u.startswith("data:image/") and ";base64," in clean_u:
+            try:
+                b64_data = clean_u.split(";base64,")[1]
+                img_bytes = base64.b64decode(b64_data)
+                img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                if img.width >= 50 and img.height >= 50:
+                    return img
+            except Exception:
+                return None
+
+        # 4. HTTP(S) download with robust browser headers
+        if clean_u.startswith("http://") or clean_u.startswith("https://"):
+            headers_list = [
+                {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+                    "Referer": "https://www.google.com/"
+                },
+                {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+                    "Accept": "*/*"
+                }
+            ]
+            for headers in headers_list:
+                try:
+                    resp = requests.get(clean_u, headers=headers, timeout=10)
+                    if resp.status_code == 200 and resp.content:
+                        img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+                        # Ignore tiny 1x1 tracking pixels or placeholders
+                        if img.width >= 50 and img.height >= 50:
+                            return img
+                except Exception:
+                    continue
+
+        return None
+
+    def _fetch_product_image_with_fallback(self, target_url: str, product: Dict[str, Any]) -> Optional[Image.Image]:
+        """Tries the target URL, then product['image_url'], then each of product['image_urls'],
+        and CDN variations to guarantee an image is always loaded without white screen."""
+        # 1. Try target_url
+        if target_url:
+            img = self._fetch_image(target_url)
+            if img:
+                return img
+
+        # 2. Try product.get("image_url")
+        prim_url = product.get("image_url", "")
+        if prim_url and prim_url != target_url:
+            img = self._fetch_image(prim_url)
+            if img:
+                return img
+
+        # 3. Try each URL in product.get("image_urls")
+        gallery = product.get("image_urls", [])
+        if isinstance(gallery, list):
+            for g_url in gallery:
+                if g_url and g_url not in (target_url, prim_url):
+                    img = self._fetch_image(g_url)
+                    if img:
+                        return img
+
+        # 4. Try Amazon / Flipkart CDN URL variations
+        test_urls = [u for u in [target_url, prim_url] if u]
+        for u in test_urls:
+            if "media-amazon.com" in u or "ssl-images-amazon" in u:
+                alt_u = re.sub(r"\._AC_[^.]*_\.", "._AC_SL1500_.", u)
+                if alt_u != u:
+                    img = self._fetch_image(alt_u)
+                    if img:
+                        return img
+                bare_u = re.sub(r"\._AC_[^.]*_\.", ".", u)
+                if bare_u != u:
+                    img = self._fetch_image(bare_u)
+                    if img:
+                        return img
+            elif "flixcart.com" in u:
+                clean_u = u.split("?")[0]
+                if clean_u != u:
+                    img = self._fetch_image(clean_u)
+                    if img:
+                        return img
+
         return None
 
     def _clean_title(self, raw_title: str, max_words: int = 7) -> str:
@@ -215,19 +305,26 @@ class ImageGenerator:
         card_h = 670
 
         draw.rounded_rectangle([(card_x - 4, card_y - 4), (card_x + card_w + 4, card_y + card_h + 4)], radius=24, fill=(45, 55, 72))
-        draw.rounded_rectangle([(card_x, card_y), (card_x + card_w, card_y + card_h)], radius=20, fill=(255, 255, 255))
 
         # Download & display authentic scraped product photo
         primary_img_url = product.get("image_url", "")
         if not primary_img_url and product.get("image_urls"):
             primary_img_url = product.get("image_urls")[0]
 
-        prod_img = self._fetch_image(primary_img_url)
+        prod_img = self._fetch_product_image_with_fallback(primary_img_url, product)
         if prod_img:
+            draw.rounded_rectangle([(card_x, card_y), (card_x + card_w, card_y + card_h)], radius=20, fill=(255, 255, 255))
             prod_img.thumbnail((card_w - 40, card_h - 40), Image.Resampling.LANCZOS)
             px = card_x + (card_w - prod_img.width) // 2
             py = card_y + (card_h - prod_img.height) // 2
             img.paste(prod_img, (px, py))
+        else:
+            # Fallback sleek dark card if image cannot be downloaded over network
+            draw.rounded_rectangle([(card_x, card_y), (card_x + card_w, card_y + card_h)], radius=20, fill=(24, 32, 47))
+            draw.rounded_rectangle([(card_x + 30, card_y + 30), (card_x + card_w - 30, card_y + card_h - 30)], radius=16, outline=(51, 65, 85), width=2)
+            draw.text((card_x + card_w // 2, card_y + card_h // 2 - 40), "VERIFIED STORE DEAL", fill=(245, 158, 11), anchor="mm", font=self._get_font(32, bold=True))
+            draw.text((card_x + card_w // 2, card_y + card_h // 2 + 10), short_title[:35], fill=(255, 255, 255), anchor="mm", font=self._get_font(26, bold=False))
+            draw.text((card_x + card_w // 2, card_y + card_h // 2 + 55), f"[{product.get('platform', 'STORE').upper()} EXCLUSIVE FIND]", fill=(148, 163, 184), anchor="mm", font=self._get_font(20, bold=False))
 
         # Badges on the scraped photo
         # Top-Left: "REAL STORE PICTURE" + Curator Tag (dynamically sized)
@@ -379,15 +476,22 @@ class ImageGenerator:
         card_h = 670
 
         draw.rounded_rectangle([(card_x - 4, card_y - 4), (card_x + card_w + 4, card_y + card_h + 4)], radius=24, fill=(45, 55, 72))
-        draw.rounded_rectangle([(card_x, card_y), (card_x + card_w, card_y + card_h)], radius=20, fill=(255, 255, 255))
 
-        # Download & display scraped photo
-        prod_img = self._fetch_image(img_url)
+        # Download & display scraped photo with full fallback
+        prod_img = self._fetch_product_image_with_fallback(img_url, product)
         if prod_img:
+            draw.rounded_rectangle([(card_x, card_y), (card_x + card_w, card_y + card_h)], radius=20, fill=(255, 255, 255))
             prod_img.thumbnail((card_w - 40, card_h - 40), Image.Resampling.LANCZOS)
             px = card_x + (card_w - prod_img.width) // 2
             py = card_y + (card_h - prod_img.height) // 2
             img.paste(prod_img, (px, py))
+        else:
+            # Fallback sleek dark card if image cannot be downloaded over network
+            draw.rounded_rectangle([(card_x, card_y), (card_x + card_w, card_y + card_h)], radius=20, fill=(24, 32, 47))
+            draw.rounded_rectangle([(card_x + 30, card_y + 30), (card_x + card_w - 30, card_y + card_h - 30)], radius=16, outline=(51, 65, 85), width=2)
+            draw.text((card_x + card_w // 2, card_y + card_h // 2 - 40), "VERIFIED STORE GALLERY", fill=(245, 158, 11), anchor="mm", font=self._get_font(32, bold=True))
+            draw.text((card_x + card_w // 2, card_y + card_h // 2 + 10), short_title[:35], fill=(255, 255, 255), anchor="mm", font=self._get_font(26, bold=False))
+            draw.text((card_x + card_w // 2, card_y + card_h // 2 + 55), f"[{product.get('platform', 'STORE').upper()} • SLIDE {slide_idx} OF {total_slides}]", fill=(148, 163, 184), anchor="mm", font=self._get_font(20, bold=False))
 
         # Badges on the scraped photo
         draw.rounded_rectangle([(card_x + 20, card_y + 20), (card_x + 280, card_y + 68)], radius=12, fill=(15, 23, 42))

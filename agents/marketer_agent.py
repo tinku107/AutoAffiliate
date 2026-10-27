@@ -129,7 +129,7 @@ class MarketerAgent:
                 from core.db import get_products
                 prods = get_products(limit=100)
                 for pr in prods:
-                    if pr.get("id") == post.get("product_id"):
+                    if pr.get("id") == post.get("product_id") or str(pr.get("product_id")) == str(post.get("product_id")):
                         pub_image_url = pr.get("image_url", "")
                         break
             except Exception:

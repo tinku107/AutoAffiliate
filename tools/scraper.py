@@ -7,6 +7,7 @@ and supports automatic failover between Amazon and Flipkart.
 import requests
 from bs4 import BeautifulSoup
 import re
+import json
 import random
 import time
 import urllib.parse
@@ -76,6 +77,66 @@ class ProductScraper:
             except Exception:
                 pass
         return 0.0
+
+    def _extract_img_from_elem(self, img_elem) -> str:
+        """Extracts the cleanest, highest-resolution image URL from an HTML image element.
+        Handles Amazon dynamic image JSON (data-a-dynamic-image), data-old-hires, data-src, srcset, and lazy loading.
+        """
+        if not img_elem:
+            return ""
+
+        # 1. Check Amazon dynamic image JSON
+        dyn_json = img_elem.get("data-a-dynamic-image")
+        if dyn_json:
+            try:
+                dyn_dict = json.loads(dyn_json)
+                if isinstance(dyn_dict, dict) and dyn_dict:
+                    best_url = max(
+                        dyn_dict.keys(),
+                        key=lambda k: (dyn_dict[k][0] * dyn_dict[k][1] if isinstance(dyn_dict[k], list) and len(dyn_dict[k]) >= 2 else 0)
+                    )
+                    if best_url and best_url.startswith("http"):
+                        return best_url
+            except Exception:
+                pass
+
+        # 2. Check data-old-hires
+        old_hires = img_elem.get("data-old-hires")
+        if old_hires and old_hires.startswith("http"):
+            return old_hires
+
+        # 3. Check data-src
+        data_src = img_elem.get("data-src")
+        if data_src:
+            if data_src.startswith("//"):
+                data_src = "https:" + data_src
+            if data_src.startswith("http") and not any(s in data_src.lower() for s in ["grey-pixel", "pixel", "transparent", "sprite", "loading"]):
+                return data_src
+
+        # 4. Check srcset
+        srcset = img_elem.get("srcset")
+        if srcset:
+            parts = [p.strip().split()[0] for p in srcset.split(",") if p.strip()]
+            if parts:
+                last_part = parts[-1]
+                if last_part.startswith("//"):
+                    last_part = "https:" + last_part
+                if last_part.startswith("http") and not any(s in last_part.lower() for s in ["grey-pixel", "pixel", "transparent", "sprite", "loading"]):
+                    return last_part
+
+        # 5. Check src
+        src = img_elem.get("src", "").strip()
+        if src.startswith("//"):
+            src = "https:" + src
+        if src.startswith("http") and not src.startswith("data:") and not any(s in src.lower() for s in ["grey-pixel", "pixel", "transparent", "sprite", "loading"]):
+            return src
+
+        # 6. Check data-orig
+        data_orig = img_elem.get("data-orig")
+        if data_orig and data_orig.startswith("http"):
+            return data_orig
+
+        return ""
 
     def extract_gallery_images(self, product_url: str, primary_img_url: str = "", max_images: int = 8) -> List[str]:
         """
@@ -209,10 +270,9 @@ class ProductScraper:
                 if not title or len(title) < 5:
                     continue
 
-                img_elem = card.find("img")
-                img_url = ""
-                if img_elem and "src" in img_elem.attrs:
-                    img_url = img_elem["src"]
+                img_elem = card.find("img", {"class": re.compile(r"p13n-sc-dynamic-image|s-image")}) or card.find("img")
+                img_url = self._extract_img_from_elem(img_elem) if img_elem else ""
+                if img_url:
                     img_url = re.sub(r"\._AC_.*_\.", "._AC_SL1200_.", img_url)
 
                 price = 0.0
@@ -311,8 +371,8 @@ class ProductScraper:
 
                     link = f"https://www.amazon.in/dp/{asin}"
 
-                    img_elem = item.find("img", {"class": "s-image"})
-                    img_url = img_elem["src"] if img_elem and "src" in img_elem.attrs else ""
+                    img_elem = item.find("img", {"class": "s-image"}) or item.find("img")
+                    img_url = self._extract_img_from_elem(img_elem) if img_elem else ""
                     if img_url:
                         img_url = re.sub(r"\._AC_.*_\.", "._AC_SL1200_.", img_url)
 
@@ -409,7 +469,7 @@ class ProductScraper:
                     continue
 
                 img_elem = it.find('img')
-                img_url = img_elem.get('src') if img_elem else ''
+                img_url = self._extract_img_from_elem(img_elem) if img_elem else ''
                 if img_url:
                     img_url = re.sub(r'/image/\d+/\d+/', '/image/832/832/', img_url)
 
@@ -607,11 +667,13 @@ class ProductScraper:
                     price = self._parse_price_number(price_elem.get_text()) if price_elem else 0.0
                     mrp_elem = soup.find("span", {"class": "a-price a-text-price"})
                     mrp = self._parse_price_number(mrp_elem.get_text()) if mrp_elem else round(price * 1.3, 2)
-                    img_elem = soup.find("img", {"id": "landingImage"})
-                    img_url = img_elem["src"] if img_elem and "src" in img_elem.attrs else ""
+                    img_elem = soup.find("img", {"id": "landingImage"}) or soup.find("img", {"id": "main-image"}) or soup.find("img", {"class": "s-image"})
+                    img_url = self._extract_img_from_elem(img_elem) if img_elem else ""
                     if not img_url:
                         og_img = soup.find("meta", {"property": "og:image"})
                         img_url = og_img["content"].strip() if og_img and "content" in og_img.attrs else ""
+                    if img_url:
+                        img_url = re.sub(r"\._AC_.*_\.", "._AC_SL1200_.", img_url)
                     asin_match = re.search(r"/(?:dp|gp/product|d)/([A-Z0-9]{10})", url)
                     pid = asin_match.group(1) if asin_match else f"AMZ_{int(time.time())}"
 
@@ -624,8 +686,13 @@ class ProductScraper:
                     price = self._parse_price_number(price_elem.get_text()) if price_elem else 0.0
                     mrp_elem = soup.find("div", {"class": re.compile(r"yRaY8j|_3I9_wc")})
                     mrp = self._parse_price_number(mrp_elem.get_text()) if mrp_elem else round(price * 1.35, 2)
-                    img_elem = soup.find("img", {"class": re.compile(r"DByuf4|_396cs4")})
-                    img_url = img_elem["src"] if img_elem and "src" in img_elem.attrs else ""
+                    img_elem = soup.find("img", {"class": re.compile(r"DByuf4|_396cs4")}) or soup.find("img")
+                    img_url = self._extract_img_from_elem(img_elem) if img_elem else ""
+                    if not img_url:
+                        og_img = soup.find("meta", {"property": "og:image"})
+                        img_url = og_img["content"].strip() if og_img and "content" in og_img.attrs else ""
+                    if img_url:
+                        img_url = re.sub(r'/image/\d+/\d+/', '/image/832/832/', img_url)
                     pid_match = re.search(r"pid=([A-Z0-9]+)", url)
                     pid = pid_match.group(1) if pid_match else f"FK_{int(time.time())}"
 

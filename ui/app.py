@@ -1585,14 +1585,17 @@ elif nav_selection == "⚡ Live Product Sandbox":
                         ig_err = pub_res.get("instagram", {}).get("error")
                         fb_err = pub_res.get("facebook", {}).get("error")
 
-                        if ig_id or fb_id:
-                            st.success(f"Post successfully published! (Facebook: {fb_id or 'Simulated'}, Instagram: {ig_id or 'Simulated'})")
-                            st.toast("✅ Published to Facebook and Instagram!", icon="🚀")
-                        elif fb_err or ig_err:
-                            st.warning(f"Meta publication status: Facebook: {fb_err or 'OK'} | Instagram: {ig_err or 'OK'}")
+                        if not pub_res.get("success"):
+                            st.error(f"❌ Publication rejected by Meta: {pub_res.get('error')}")
+                            if "pages_manage_posts" in str(pub_res.get("error")):
+                                st.warning("⚠️ Action Needed: Your Meta token is missing `pages_manage_posts` permission. Follow the instructions below to enable it in Graph API Explorer.")
+                        elif pub_res.get("is_live"):
+                            st.success(f"🎉 Post is LIVE on Meta! (Facebook: {fb_id or 'OK'}, Instagram: {ig_id or 'OK'})")
+                            st.toast("✅ Published LIVE to Facebook and Instagram!", icon="🚀")
+                            st.rerun()
                         else:
-                            st.success("Test post published successfully!")
-                        st.rerun()
+                            st.info(f"ℹ️ Post verified in SIMULATION mode: {pub_res.get('facebook', {}).get('message', 'Simulated')}")
+                            st.rerun()
 
             with act_col2:
                 if st.button("❌ Reject", use_container_width=True, key="btn_reject_product", help="Reject this product. It will be discarded and AutoAffiliate will immediately pick the next product."):
@@ -1705,8 +1708,14 @@ elif nav_selection == "📱 Content & Media Library":
                                 if st.button(f"✅ Approve & Post", key=f"lib_pub_{post['id']}", use_container_width=True, type="primary"):
                                     with st.spinner("Publishing across Meta & Telegram..."):
                                         res = st.session_state.orchestrator.marketer.publish_approved_post(post, channel_profile=target_account)
-                                        st.success("Post successfully published!")
-                                        st.rerun()
+                                        if not res.get("success"):
+                                            st.error(f"❌ Publication rejected by Meta: {res.get('error')}")
+                                        elif res.get("is_live"):
+                                            st.success("🎉 Post is LIVE on Facebook & Instagram!")
+                                            st.rerun()
+                                        else:
+                                            st.info("ℹ️ Post verified in SIMULATION mode.")
+                                            st.rerun()
                             with col_lib_r:
                                 if st.button(f"❌ Reject", key=f"lib_rej_{post['id']}", use_container_width=True):
                                     from core.db import update_post_status, discard_product_in_db

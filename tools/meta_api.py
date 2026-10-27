@@ -18,11 +18,11 @@ class MetaPublisher:
         telegram_token: Optional[str] = None,
         telegram_channel_id: Optional[str] = None
     ):
-        self.access_token = access_token if access_token is not None else os.getenv("META_ACCESS_TOKEN", "")
-        self.ig_user_id = ig_user_id if ig_user_id is not None else os.getenv("INSTAGRAM_ACCOUNT_ID", "")
-        self.fb_page_id = fb_page_id if fb_page_id is not None else os.getenv("META_PAGE_ID", "")
-        self.telegram_token = telegram_token if telegram_token is not None else os.getenv("TELEGRAM_BOT_TOKEN", "")
-        self.telegram_channel_id = telegram_channel_id if telegram_channel_id is not None else os.getenv("TELEGRAM_CHANNEL_ID", "")
+        self.access_token = access_token if access_token is not None else os.getenv("META_ACCESS_TOKEN", "").strip()
+        self.ig_user_id = str(ig_user_id).strip() if ig_user_id is not None else os.getenv("INSTAGRAM_ACCOUNT_ID", "").strip()
+        self.fb_page_id = str(fb_page_id).strip() if fb_page_id is not None else os.getenv("META_PAGE_ID", "").strip()
+        self.telegram_token = telegram_token if telegram_token is not None else os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+        self.telegram_channel_id = str(telegram_channel_id).strip() if telegram_channel_id is not None else os.getenv("TELEGRAM_CHANNEL_ID", "").strip()
 
     def is_configured(self) -> bool:
         """Returns True if Meta API credentials are provided."""

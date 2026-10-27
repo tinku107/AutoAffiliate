@@ -111,11 +111,15 @@ class MarketerAgent:
 
         pub = self.publisher
         if channel_profile and (channel_profile.get("meta_access_token") or channel_profile.get("facebook_page_id") or channel_profile.get("telegram_channel_id")):
+            prof_tok = (channel_profile.get("meta_access_token") or "").strip() or None
+            prof_fb_id = (str(channel_profile.get("facebook_page_id") or "")).strip() or None
+            prof_tg_tok = (channel_profile.get("telegram_bot_token") or "").strip() or None
+            prof_tg_ch = (str(channel_profile.get("telegram_channel_id") or "")).strip() or None
             pub = MetaPublisher(
-                access_token=channel_profile.get("meta_access_token"),
-                fb_page_id=channel_profile.get("facebook_page_id"),
-                telegram_token=channel_profile.get("telegram_bot_token"),
-                telegram_channel_id=channel_profile.get("telegram_channel_id")
+                access_token=prof_tok,
+                fb_page_id=prof_fb_id,
+                telegram_token=prof_tg_tok,
+                telegram_channel_id=prof_tg_ch
             )
 
         # Determine media paths and public CDN image URL
@@ -157,8 +161,32 @@ class MarketerAgent:
         tg_text = f"Deal Alert: {clean_humanoid_text(post.get('headline', ''))}\n\nDirect link: {fb_link}"
         tg_res = pub.broadcast_telegram_deal(image_path=image_path, text=tg_text)
 
-        # Update post in DB
-        update_post_status(post_id, "published", external_id=ig_res.get("post_id", "sim_1"))
+        # Check live publication success
+        is_ig_live = bool(ig_res.get("success") and ig_res.get("mode") == "live")
+        is_fb_live = bool(fb_res.get("success") and fb_res.get("mode") == "live")
+        is_any_live = is_ig_live or is_fb_live
+        is_sim = bool(ig_res.get("mode") == "simulation" and fb_res.get("mode") == "simulation")
+
+        fb_err = fb_res.get("error") if not fb_res.get("success") else None
+        ig_err = ig_res.get("error") if not ig_res.get("success") else None
+
+        # If Meta returned a hard API error (e.g. (#200) requires pages_manage_posts), fail cleanly
+        if fb_err or ig_err:
+            err_msg = f"Facebook: {fb_err}" if fb_err else f"Instagram: {ig_err}"
+            log_agent_action(self.name, f"Post #{post_id} rejected by Meta API: {err_msg}", "error")
+            return {
+                "success": False,
+                "post_id": post_id,
+                "error": err_msg,
+                "instagram": ig_res,
+                "facebook": fb_res,
+                "telegram": tg_res
+            }
+
+        # Update post in DB only when genuinely published or simulated
+        target_status = "published" if is_any_live else "simulated"
+        ext_post_id = fb_res.get("post_id") or ig_res.get("post_id") or "sim_1"
+        update_post_status(post_id, target_status, external_id=ext_post_id)
 
         # Log publication event (Real clicks and revenue come from verified affiliate network reports)
         log_daily_revenue(
@@ -174,12 +202,13 @@ class MarketerAgent:
             self.name,
             f"Post #{post_id} successfully published to [{channel_name}]",
             "completed",
-            details=f"IG ID: {ig_res.get('post_id')} | FB: {fb_res.get('post_id')}"
+            details=f"IG ID: {ig_res.get('post_id')} | FB: {fb_res.get('post_id')} | Mode: {'LIVE' if is_any_live else 'SIMULATION'}"
         )
 
         return {
             "success": True,
             "post_id": post_id,
+            "is_live": is_any_live,
             "instagram": ig_res,
             "facebook": fb_res,
             "telegram": tg_res

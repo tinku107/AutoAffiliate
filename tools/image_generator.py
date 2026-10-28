@@ -10,6 +10,7 @@ import base64
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from typing import Dict, Any, List, Optional
+from tools.avatar_tryon import AvatarTryOnEngine
 
 GENERATED_IMG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "generated_images")
 
@@ -17,6 +18,7 @@ GENERATED_IMG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "da
 class ImageGenerator:
     def __init__(self):
         os.makedirs(GENERATED_IMG_DIR, exist_ok=True)
+        self.tryon = AvatarTryOnEngine()
 
     def _get_font(self, size: int, bold: bool = False):
         candidate_paths = [
@@ -306,8 +308,13 @@ class ImageGenerator:
 
         draw.rounded_rectangle([(card_x - 4, card_y - 4), (card_x + card_w + 4, card_y + card_h + 4)], radius=24, fill=(45, 55, 72))
 
-        # Download & display authentic scraped product photo
-        primary_img_url = product.get("image_url", "")
+        # Check if AI Avatar Virtual Try-On photoshoot is available
+        pid = product.get("product_id") or "prod"
+        cached_tryon = os.path.join(GENERATED_IMG_DIR, f"tryon_{pid}_avatar.jpg")
+        tryon_img_path = product.get("tryon_image_path") or (cached_tryon if os.path.exists(cached_tryon) else "")
+
+        is_tryon = bool(tryon_img_path and os.path.exists(tryon_img_path))
+        primary_img_url = tryon_img_path if is_tryon else (product.get("image_url", ""))
         if not primary_img_url and product.get("image_urls"):
             primary_img_url = product.get("image_urls")[0]
 
@@ -327,9 +334,9 @@ class ImageGenerator:
             draw.text((card_x + card_w // 2, card_y + card_h // 2 + 55), f"[{product.get('platform', 'STORE').upper()} EXCLUSIVE FIND]", fill=(148, 163, 184), anchor="mm", font=self._get_font(20, bold=False))
 
         # Badges on the scraped photo
-        # Top-Left: "REAL STORE PICTURE" + Curator Tag (dynamically sized)
+        # Top-Left: "REAL STORE PICTURE" or "AI VIRTUAL TRY-ON" + Curator Tag (dynamically sized)
         curator_tag = "CURATED BY ELENA" if "ELENA" in brand_name else f"CURATED BY {brand_name}"
-        curator_badge_text = f"REAL STORE PICTURE • {curator_tag}"
+        curator_badge_text = f"AI VIRTUAL TRY-ON • {curator_tag}" if is_tryon else f"REAL STORE PICTURE • {curator_tag}"
         badge_font = self._get_font(14, bold=True)
         b_bbox = badge_font.getbbox(curator_badge_text)
         b_text_w = b_bbox[2] - b_bbox[0]

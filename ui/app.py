@@ -1521,8 +1521,8 @@ elif nav_selection == "⚡ Live Product Sandbox":
                 except Exception:
                     media = [media] if media else []
 
-            # Multi-Tab Image Preview: Social Media Graphic & Direct Authentic Store Photo
-            img_tabs = st.tabs(["🖼️ Social Graphic", "📸 Direct Store Photo"])
+            # Multi-Tab Image Preview: Social Media Graphic, Elena AI Try-On & Direct Authentic Store Photo
+            img_tabs = st.tabs(["🖼️ Social Graphic", "✨ Elena AI Try-On", "📸 Store Photo"])
 
             with img_tabs[0]:
                 valid_media = [m for m in media if os.path.exists(m)]
@@ -1541,6 +1541,42 @@ elif nav_selection == "⚡ Live Product Sandbox":
                     st.info("Product visual is ready.")
 
             with img_tabs[1]:
+                st.caption("✨ **OpenAI Virtual Try-On**: Generate a high-fashion studio photoshoot of Elena wearing this exact product!")
+                pid = p.get("product_id") or "prod"
+                tryon_cached = os.path.join("data", "generated_images", f"tryon_{pid}_avatar.jpg")
+
+                if os.path.exists(tryon_cached) and os.path.getsize(tryon_cached) > 10000:
+                    st.image(tryon_cached, caption=f"✨ Elena Photoshoot: {p.get('title')[:40]}", use_container_width=True)
+                    st.success("✅ High-fashion photoshoot generated and active for this deal!")
+                else:
+                    st.info("Click below to have OpenAI dress Elena in this outfit for a custom photoshoot.")
+                    if st.button("✨ Generate Elena Model Photoshoot (OpenAI)", key=f"btn_tryon_{pid}", use_container_width=True, type="primary"):
+                        with st.spinner("OpenAI analyzing outfit and generating studio photoshoot of Elena..."):
+                            from tools.avatar_tryon import AvatarTryOnEngine
+                            engine = AvatarTryOnEngine()
+                            out_path = engine.generate_avatar_photoshoot(
+                                p,
+                                channel_profile=st.session_state.orchestrator.get_active_profile()
+                            )
+                            if out_path and os.path.exists(out_path):
+                                st.session_state.last_test_result["product"]["tryon_image_path"] = out_path
+                                # Regenerate social slides with new photoshoot
+                                try:
+                                    new_media = st.session_state.orchestrator.creative.image_gen.generate_carousel_slides(
+                                        st.session_state.last_test_result["product"],
+                                        max_slides=8,
+                                        channel_profile=st.session_state.orchestrator.get_active_profile(),
+                                        enable_avatar=True
+                                    )
+                                    st.session_state.last_test_result["post"]["media_paths"] = new_media
+                                except Exception as e:
+                                    print(f"Slide regen note: {e}")
+                                st.toast("✨ Elena model photoshoot ready!", icon="👗")
+                                st.rerun()
+                            else:
+                                st.error("Failed to generate photoshoot. Check OPENAI_API_KEY in .env.")
+
+            with img_tabs[2]:
                 raw_img = p.get("image_url", "")
                 raw_gallery = p.get("image_urls", [])
                 if raw_img:

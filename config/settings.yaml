@@ -10,7 +10,7 @@ ai:
   model: gemini-2.5-flash
 app:
   currency: INR
-  daily_revenue_target_inr: 500.0
+  daily_revenue_target_inr: 5000.0
   name: AutoAffiliate AI
   theme_mode: Dark
   version: 1.1.0
@@ -45,6 +45,7 @@ channel_profiles:
   name: StyleDrop India (Ladies Fashion)
   telegram_bot_token: ''
   telegram_channel_id: ''
+  meta_user_token: ''
 - custom_affiliate_tag: ''
   description: 'Niche focus: Exclusively High-Ticket Smartphones, Laptops, Gadgets
     and Audio'
@@ -57,6 +58,7 @@ channel_profiles:
   name: TechPulse India (Electronics and Tech)
   telegram_bot_token: ''
   telegram_channel_id: ''
+  meta_user_token: ''
 - custom_affiliate_tag: ''
   description: 'Niche focus: Exclusively Men Clothing, Formal and Casual Shirts, Jeans,
     Sneakers and Grooming'
@@ -69,6 +71,7 @@ channel_profiles:
   name: UrbanGent India (Men's Fashion)
   telegram_bot_token: ''
   telegram_channel_id: ''
+  meta_user_token: ''
 - custom_affiliate_tag: ''
   description: 'Common focus: Scrapes top trending deals across all categories (Mobiles,
     Dresses, Gadgets, Toys)'
@@ -81,6 +84,7 @@ channel_profiles:
   name: Mega Loot Deals (General)
   telegram_bot_token: ''
   telegram_channel_id: ''
+  meta_user_token: ''
 custom_affiliate_platforms:
   ajio:
     clean_params: []

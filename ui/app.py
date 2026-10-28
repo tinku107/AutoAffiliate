@@ -36,7 +36,10 @@ from core.db import (
     log_daily_revenue,
     set_daily_revenue_row,
     bulk_save_daily_revenue,
-    bulk_update_posts
+    bulk_update_posts,
+    get_pulled_product_ids,
+    mark_product_pulled,
+    clear_pulled_history
 )
 
 # Page Configuration
@@ -1476,7 +1479,6 @@ elif nav_selection == "⚡ Live Product Sandbox":
                 st.rerun()
 
     # Show Pulled Products Deduplication Registry
-    from core.db import get_pulled_product_ids
     pulled_pids = get_pulled_product_ids()
     if pulled_pids:
         with st.expander(f"📦 Pulled Products Deduplication Registry ({len(pulled_pids)} products tracked in DB)", expanded=False):

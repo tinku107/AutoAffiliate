@@ -10,6 +10,9 @@ import base64
 import requests
 from PIL import Image
 from typing import Dict, Any, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 TRYON_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "generated_images")
 

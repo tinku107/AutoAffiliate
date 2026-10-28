@@ -7,6 +7,9 @@ import requests
 import time
 import random
 from typing import Dict, Any, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class MetaPublisher:

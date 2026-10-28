@@ -1636,22 +1636,9 @@ elif nav_selection == "⚡ Live Product Sandbox":
                 if st.button("✅ Approve & Post", use_container_width=True, type="primary", key="btn_approve_and_post", help="Approve this product and immediately publish live to Facebook and Instagram."):
                     with st.spinner(f"Publishing to {target_account.get('name', 'Elena')} on Meta & Telegram..."):
                         pub_res = st.session_state.orchestrator.marketer.publish_approved_post(pst, channel_profile=target_account)
-                        ig_id = pub_res.get("instagram", {}).get("post_id")
-                        fb_id = pub_res.get("facebook", {}).get("post_id")
-                        ig_err = pub_res.get("instagram", {}).get("error")
-                        fb_err = pub_res.get("facebook", {}).get("error")
-
-                        if not pub_res.get("success"):
-                            st.error(f"❌ Publication rejected by Meta: {pub_res.get('error')}")
-                            if "pages_manage_posts" in str(pub_res.get("error")):
-                                st.warning("⚠️ Action Needed: Your Meta token is missing `pages_manage_posts` permission. Follow the instructions below to enable it in Graph API Explorer.")
-                        elif pub_res.get("is_live"):
-                            st.success(f"🎉 Post is LIVE on Meta! (Facebook: {fb_id or 'OK'}, Instagram: {ig_id or 'OK'})")
-                            st.toast("✅ Published LIVE to Facebook and Instagram!", icon="🚀")
-                            st.rerun()
-                        else:
-                            st.info(f"ℹ️ Post verified in SIMULATION mode: {pub_res.get('facebook', {}).get('message', 'Simulated')}")
-                            st.rerun()
+                        st.session_state.last_publish_receipt = pub_res
+                        if pub_res.get("is_live"):
+                            pst["status"] = "published"
 
             with act_col2:
                 if st.button("❌ Reject", use_container_width=True, key="btn_reject_product", help="Reject this product. It will be discarded and AutoAffiliate will immediately pick the next product."):
@@ -1663,8 +1650,44 @@ elif nav_selection == "⚡ Live Product Sandbox":
                             platform=test_platform
                         )
                         st.session_state.last_test_result = res if res.get("success") else None
+                        st.session_state.last_publish_receipt = None
                         st.toast(f"❌ Rejected '{p.get('title')[:30]}'. Next product loaded!", icon="🔄")
                         st.rerun()
+
+            # Persistent Publishing Receipts & Status Card (DOES NOT BLINK - Stays until dismissed)
+            if "last_publish_receipt" in st.session_state and st.session_state.last_publish_receipt:
+                rec = st.session_state.last_publish_receipt
+                fb_data = rec.get("facebook", {})
+                ig_data = rec.get("instagram", {})
+
+                st.markdown("---")
+                st.markdown("### 📢 Meta Publishing Receipts & Channel Status")
+
+                c_fb, c_ig = st.columns(2)
+                with c_fb:
+                    st.markdown("#### 📘 Facebook Page (Elena's World)")
+                    if fb_data.get("mode") == "live":
+                        st.success(f"🟢 **LIVE PUBLISHED TO FACEBOOK**\n\n- **Post ID:** `{fb_data.get('post_id')}`\n- **Delivery:** Direct High-Res Upload")
+                        st.markdown(f"[👉 **Click here to view your live post on Facebook**](https://www.facebook.com/1484650751391885)")
+                    elif fb_data.get("error"):
+                        st.error(f"🔴 **FACEBOOK ERROR:**\n\n{fb_data.get('error')}")
+                    else:
+                        st.info(f"ℹ️ {fb_data.get('message', 'Facebook simulated')}")
+
+                with c_ig:
+                    st.markdown("#### 📸 Instagram (@affiliatem262)")
+                    if ig_data.get("mode") == "live":
+                        st.success(f"🟢 **LIVE PUBLISHED TO INSTAGRAM**\n\n- **Post ID:** `{ig_data.get('post_id')}`")
+                    elif ig_data.get("error") or ig_data.get("mode") == "not_connected":
+                        err_text = ig_data.get("error") or ig_data.get("message") or "Instagram account not linked"
+                        st.error(f"🔴 **NOT POSTED TO INSTAGRAM**\n\n**Reason:** {err_text}")
+                        st.warning("👉 **Action Required for Instagram:**\nMeta Graph API requires an Instagram Professional account linked to your Facebook Page.\n1. Go to **Facebook Page Settings** → **Linked Accounts** → **Instagram**\n2. Click **Connect Account** and log into `@affiliatem262`\n3. Once connected, future posts will automatically publish to both Facebook & Instagram together.")
+                    else:
+                        st.info(f"ℹ️ {ig_data.get('message', 'Instagram simulated')}")
+
+                if st.button("✖ Dismiss Status Receipt", key="btn_dismiss_receipt"):
+                    st.session_state.last_publish_receipt = None
+                    st.rerun()
 
 
 # ==============================================================================
@@ -1764,14 +1787,22 @@ elif nav_selection == "📱 Content & Media Library":
                                 if st.button(f"✅ Approve & Post", key=f"lib_pub_{post['id']}", use_container_width=True, type="primary"):
                                     with st.spinner("Publishing across Meta & Telegram..."):
                                         res = st.session_state.orchestrator.marketer.publish_approved_post(post, channel_profile=target_account)
-                                        if not res.get("success"):
-                                            st.error(f"❌ Publication rejected by Meta: {res.get('error')}")
-                                        elif res.get("is_live"):
-                                            st.success("🎉 Post is LIVE on Facebook & Instagram!")
-                                            st.rerun()
-                                        else:
-                                            st.info("ℹ️ Post verified in SIMULATION mode.")
-                                            st.rerun()
+                                        st.session_state[f"pub_res_{post['id']}"] = res
+                                        if res.get("is_live"):
+                                            post["status"] = "published"
+
+                                if f"pub_res_{post['id']}" in st.session_state:
+                                    r_item = st.session_state[f"pub_res_{post['id']}"]
+                                    fb_p = r_item.get("facebook", {})
+                                    ig_p = r_item.get("instagram", {})
+                                    if fb_p.get("mode") == "live":
+                                        st.success(f"🟢 FB Live: Post `{fb_p.get('post_id')}`")
+                                    elif fb_p.get("error"):
+                                        st.error(f"🔴 FB Error: {fb_p.get('error')}")
+                                    if ig_p.get("mode") == "live":
+                                        st.success(f"🟢 IG Live: Post `{ig_p.get('post_id')}`")
+                                    elif ig_p.get("error") or ig_p.get("mode") == "not_connected":
+                                        st.warning(f"⚠️ IG Not Posted: {ig_p.get('error') or ig_p.get('message')}")
                             with col_lib_r:
                                 if st.button(f"❌ Reject", key=f"lib_rej_{post['id']}", use_container_width=True):
                                     from core.db import update_post_status, discard_product_in_db

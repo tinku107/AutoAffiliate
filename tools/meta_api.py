@@ -56,14 +56,19 @@ class MetaPublisher:
         if not self.ig_user_id:
             self._resolve_ig_user_id()
 
-        if not self.is_configured() or not self.ig_user_id:
-            # Simulation / Dry-run Mode for immediate testing
+        if not self.ig_user_id:
+            if self.access_token and self.fb_page_id:
+                return {
+                    "success": False,
+                    "mode": "not_connected",
+                    "error": f"Instagram Business Account is not connected to Facebook Page ID {self.fb_page_id}. In Meta Business Suite, go to Page Settings -> Linked Accounts -> Instagram and connect @affiliatem262."
+                }
             simulated_id = f"ig_sim_{int(time.time())}_{random.randint(100, 999)}"
             return {
                 "success": True,
                 "mode": "simulation",
                 "post_id": simulated_id,
-                "message": "Post successfully verified and simulated (Add active META_ACCESS_TOKEN and connect Instagram to your Facebook Page to publish live to Meta servers)."
+                "message": "Instagram post simulated (Add active META_ACCESS_TOKEN and connect Instagram to your Facebook Page to publish live)."
             }
 
         if not (image_url.startswith("http://") or image_url.startswith("https://")):

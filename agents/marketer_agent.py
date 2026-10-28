@@ -170,10 +170,10 @@ class MarketerAgent:
         fb_err = fb_res.get("error") if not fb_res.get("success") else None
         ig_err = ig_res.get("error") if not ig_res.get("success") else None
 
-        # If Meta returned a hard API error (e.g. (#200) requires pages_manage_posts), fail cleanly
-        if fb_err or ig_err:
+        # Hard failure only if NEITHER platform could be published
+        if not is_any_live and (fb_err or ig_err):
             err_msg = f"Facebook: {fb_err}" if fb_err else f"Instagram: {ig_err}"
-            log_agent_action(self.name, f"Post #{post_id} rejected by Meta API: {err_msg}", "error")
+            log_agent_action(self.name, f"Post #{post_id} rejected: {err_msg}", "error")
             return {
                 "success": False,
                 "post_id": post_id,

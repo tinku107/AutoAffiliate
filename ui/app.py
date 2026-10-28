@@ -1475,6 +1475,18 @@ elif nav_selection == "⚡ Live Product Sandbox":
                 st.toast("Discard blacklist cleared! All products are now eligible again.", icon="♻️")
                 st.rerun()
 
+    # Show Pulled Products Deduplication Registry
+    from core.db import get_pulled_product_ids
+    pulled_pids = get_pulled_product_ids()
+    if pulled_pids:
+        with st.expander(f"📦 Pulled Products Deduplication Registry ({len(pulled_pids)} products tracked in DB)", expanded=False):
+            st.caption("Products below were already pulled and have active posts or drafts. The scraper and autopilot strictly skip these to ensure every pull delivers a 100% fresh, different product.")
+            st.write(", ".join([f"`{pid}`" for pid in list(pulled_pids)[:30]]))
+            if st.button("🔄 Reset Pulled Status Flags (Allow Re-pulling)", key="btn_reset_pulled_status"):
+                st.session_state.orchestrator.clear_pulled_history()
+                st.toast("Pulled status reset! Products can now be evaluated again.", icon="🔄")
+                st.rerun()
+
     if st.session_state.last_test_result:
         res = st.session_state.last_test_result
         p = res["product"]
@@ -1531,10 +1543,13 @@ elif nav_selection == "⚡ Live Product Sandbox":
                         st.image(valid_media[0], caption="Generated 1080x1080 Asset", use_container_width=True)
                     else:
                         st.image(valid_media[0], caption="Hero Slide 1", use_container_width=True)
-                        with st.expander(f"📸 View All {len(valid_media)} Carousel Slides", expanded=False):
-                            c_cols = st.columns(min(len(valid_media), 4))
-                            for idx, (m_path, c_col) in enumerate(zip(valid_media, c_cols)):
-                                c_col.image(m_path, caption=f"Slide {idx+1}", use_container_width=True)
+                        with st.expander(f"📸 All {len(valid_media)} Generated Carousel Slides", expanded=True):
+                            cols_per_row = 4
+                            for row_start in range(0, len(valid_media), cols_per_row):
+                                row_items = valid_media[row_start : row_start + cols_per_row]
+                                cols = st.columns(len(row_items))
+                                for col_idx, m_path in enumerate(row_items):
+                                    cols[col_idx].image(m_path, caption=f"Slide {row_start + col_idx + 1}", use_container_width=True)
                 elif p.get("image_url"):
                     st.image(p["image_url"], caption=f"Store Photo: {p.get('platform')}", use_container_width=True)
                 else:
@@ -1582,11 +1597,14 @@ elif nav_selection == "⚡ Live Product Sandbox":
                 if raw_img:
                     st.image(raw_img, caption=f"Direct Scraped Photo ({p.get('platform', 'Store')})", use_container_width=True)
                 if isinstance(raw_gallery, list) and len(raw_gallery) > 1:
-                    with st.expander(f"📸 {len(raw_gallery)} Additional Store Angles", expanded=False):
-                        g_cols = st.columns(min(len(raw_gallery), 4))
-                        for idx, (g_url, g_col) in enumerate(zip(raw_gallery, g_cols)):
-                            if g_url:
-                                g_col.image(g_url, caption=f"Angle {idx+1}", use_container_width=True)
+                    with st.expander(f"📸 All {len(raw_gallery)} Scraped Store Angles & Pictures", expanded=True):
+                        cols_per_row = 4
+                        for row_start in range(0, len(raw_gallery), cols_per_row):
+                            row_imgs = raw_gallery[row_start : row_start + cols_per_row]
+                            cols = st.columns(len(row_imgs))
+                            for col_idx, g_url in enumerate(row_imgs):
+                                if g_url:
+                                    cols[col_idx].image(g_url, caption=f"Angle {row_start + col_idx + 1}", use_container_width=True)
 
             st.metric("Deal Price", f"₹{int(p['deal_price']):,}", f"-{int(p['discount_pct'])}% OFF")
             st.metric("Est. Commission", f"₹{p.get('est_comm_per_sale', 0)} / sale", f"~{p.get('units_to_goal', 1)} sales to hit ₹{current_target:,.0f}")

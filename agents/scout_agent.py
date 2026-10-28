@@ -6,7 +6,7 @@ Zero hardcoding: dynamically pulls High-ticket Mobiles/iPhones, Fashion, Toys, F
 from typing import List, Dict, Any, Optional
 from tools.scraper import ProductScraper
 from tools.affiliate_tagger import AffiliateTagger
-from core.db import save_product, log_agent_action
+from core.db import save_product, log_agent_action, get_pulled_product_ids, get_discarded_product_ids
 
 
 class ScoutAgent:
@@ -29,12 +29,18 @@ class ScoutAgent:
         """
         log_agent_action(self.name, f"Live scouting [{platform.upper()}] for: {query or category}", "started")
 
+        # Request a larger pool so we can filter out already pulled products
+        fetch_limit = max(count * 3, 12)
         raw_items = self.scraper.scrape_unified_deals(
             platform=platform,
             category=category,
             query=query,
-            limit=count
+            limit=fetch_limit
         )
+
+        pulled_ids = get_pulled_product_ids()
+        discarded_ids = get_discarded_product_ids()
+        excluded_ids = pulled_ids | discarded_ids
 
         processed_products = []
         for item in raw_items:
@@ -43,7 +49,8 @@ class ScoutAgent:
             item["affiliate_url"] = url_meta["public_url"]
             item["raw_affiliate_url"] = url_meta["raw_tracking_url"]
             item["is_cloaked"] = url_meta["is_cloaked"]
-            item["status"] = "scouted"
+            item["is_pulled"] = 1 if item.get("product_id") in pulled_ids else 0
+            item["status"] = "pulled" if item["is_pulled"] else "scouted"
 
             # Dynamic Commission Calculation
             price = item.get("deal_price", 0.0)
@@ -60,13 +67,17 @@ class ScoutAgent:
             item["id"] = pid
             processed_products.append(item)
 
+        # Prioritize never-pulled and non-discarded products
+        fresh_unpulled = [p for p in processed_products if p.get("product_id") not in excluded_ids]
+        result_products = fresh_unpulled if fresh_unpulled else processed_products
+
         log_agent_action(
             self.name,
-            f"Successfully found {len(processed_products)} live products for {query or category}",
+            f"Successfully found {len(result_products[:count])} products for {query or category} ({len(fresh_unpulled)} fresh/unpulled)",
             "completed",
-            details=f"Top: {processed_products[0]['title'][:40] if processed_products else 'None'}"
+            details=f"Top: {result_products[0]['title'][:40] if result_products else 'None'}"
         )
-        return processed_products
+        return result_products[:count]
 
     def import_product_from_url(self, raw_url: str, target_profit: float = 500.0) -> Optional[Dict[str, Any]]:
         """Extracts and auto-tags any live Amazon or Flipkart URL provided by the user."""

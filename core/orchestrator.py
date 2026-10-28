@@ -21,7 +21,10 @@ from core.db import (
     log_daily_revenue,
     get_discarded_product_ids,
     discard_product_in_db,
-    clear_discarded_history
+    clear_discarded_history,
+    get_pulled_product_ids,
+    mark_product_pulled,
+    clear_pulled_history
 )
 
 from dotenv import load_dotenv
@@ -131,6 +134,7 @@ class AgentOrchestrator:
         self.marketer = MarketerAgent()
         self.cleaner = CleanerAgent()
         self.tested_product_ids = set()
+        self.pulled_product_ids = get_pulled_product_ids()
         self.discarded_product_ids = get_discarded_product_ids()
         self.test_counter = 0
 
@@ -464,7 +468,12 @@ class AgentOrchestrator:
             target_prod["est_comm_per_sale"] = est_comm
             target_prod["units_to_goal"] = max(1, int(self.daily_target_inr / max(1.0, est_comm)))
         else:
-            # Fetch a pool of live products so we can select the NEXT fresh product
+            # Persistent deduplication: Load all already pulled & discarded IDs from database
+            pulled_ids = get_pulled_product_ids()
+            discarded_ids = get_discarded_product_ids()
+            excluded_ids = pulled_ids | discarded_ids | self.tested_product_ids
+
+            # Fetch a pool of live products
             pool_size = 15
             products = self.scout.scout_trending_products(
                 category=category,
@@ -473,29 +482,100 @@ class AgentOrchestrator:
                 count=pool_size,
                 target_profit=self.daily_target_inr
             )
-            if not products:
-                return {"success": False, "error": f"No live products retrieved from {platform.upper()} for '{query or category}'"}
 
-            # Find the next product that has not been tested and not discarded
-            valid_products = [p for p in products if p.get("product_id") not in self.discarded_product_ids]
+            # Filter strictly: only products that have NEVER been pulled or discarded
+            valid_products = [p for p in products if p.get("product_id") and p.get("product_id") not in excluded_ids]
             target_prod = None
-            for p in (valid_products or products):
-                pid = p.get("product_id")
-                if pid and pid not in self.tested_product_ids and pid not in self.discarded_product_ids:
-                    target_prod = p
-                    self.tested_product_ids.add(pid)
-                    break
 
-            # If all products in the pool have been tested, clear session history and cycle
-            if not target_prod and (valid_products or products):
-                pool = valid_products or products
-                self.tested_product_ids.clear()
-                idx = self.test_counter % len(pool)
-                target_prod = pool[idx]
-                self.tested_product_ids.add(target_prod.get("product_id"))
+            if valid_products:
+                target_prod = valid_products[0]
+            else:
+                # If all initial items were already pulled, rotate through fresh sub-queries
+                category_rotations = {
+                    "fashion": [
+                        "women floral anarkali kurta",
+                        "banarasi silk saree",
+                        "designer festive saree",
+                        "women rayon printed kurti",
+                        "georgette party wear dress",
+                        "kanchipuram silk saree",
+                        "cotton daily wear kurta",
+                        "chikankari women kurta",
+                        "women fit flare maxi dress"
+                    ],
+                    "mens_fashion": [
+                        "men cotton casual shirt",
+                        "men linen formal shirt",
+                        "men polo t shirt",
+                        "men denim slim fit jeans",
+                        "men running sneakers"
+                    ],
+                    "mobiles": [
+                        "5g mobile phone deals",
+                        "samsung galaxy 5g smartphone",
+                        "oneplus 5g smartphone",
+                        "redmi 5g mobile phone"
+                    ],
+                    "electronics": [
+                        "wireless earbuds bluetooth",
+                        "smartwatch with amoled display",
+                        "fast charging power bank",
+                        "bluetooth portable speaker"
+                    ],
+                    "kitchen": [
+                        "air fryer for home",
+                        "stainless steel cookware set",
+                        "kitchen food storage containers"
+                    ],
+                    "beauty": [
+                        "vitamin c face serum",
+                        "sunscreen spf 50 pa+++",
+                        "hydrating moisturizer"
+                    ],
+                    "all": [
+                        "trending bestsellers deals",
+                        "top rated deals of the day"
+                    ]
+                }
+                cat_key = category.lower().replace(" ", "_")
+                sub_queries = category_rotations.get(cat_key, category_rotations["all"])
+
+                for sub_q in sub_queries:
+                    fresh_items = self.scout.scout_trending_products(
+                        category=category,
+                        query=sub_q,
+                        platform=platform,
+                        count=10,
+                        target_profit=self.daily_target_inr
+                    )
+                    unpulled = [p for p in fresh_items if p.get("product_id") and p.get("product_id") not in excluded_ids]
+                    if unpulled:
+                        target_prod = unpulled[0]
+                        break
 
             if not target_prod:
-                return {"success": False, "error": "No available products (all retrieved items may be discarded)."}
+                return {"success": False, "error": f"All live products in '{query or category}' on {platform.upper()} have been pulled or discarded. Try another search query or clear pulled/discard history."}
+
+        # Extract all available gallery angles for the chosen product (front, back, model, fabric)
+        if target_prod.get("source_url") and len(target_prod.get("image_urls", [])) <= 1:
+            all_angles = self.scout.scraper.extract_gallery_images(
+                target_prod["source_url"],
+                primary_img_url=target_prod.get("image_url", ""),
+                max_images=10
+            )
+            if all_angles:
+                target_prod["image_urls"] = all_angles
+                target_prod["image_url"] = all_angles[0]
+
+        # Immediately mark this product as pulled with timestamp in database
+        target_pid = target_prod.get("product_id")
+        target_db_id = target_prod.get("id")
+        mark_product_pulled(product_id=target_pid, db_id=target_db_id)
+        if target_pid:
+            self.tested_product_ids.add(target_pid)
+            self.pulled_product_ids.add(target_pid)
+        target_prod["is_pulled"] = 1
+        target_prod["status"] = "pulled"
 
         self.test_counter += 1
 
@@ -527,6 +607,14 @@ class AgentOrchestrator:
         self.discarded_product_ids.clear()
         clear_discarded_history()
         log_agent_action("Orchestrator", "Reset discarded product blacklist upon user request.", "completed")
+        return True
+
+    def clear_pulled_history(self) -> bool:
+        """Resets the pulled products status flag."""
+        clear_pulled_history()
+        self.pulled_product_ids.clear()
+        self.tested_product_ids.clear()
+        log_agent_action("Orchestrator", "Reset pulled products history.", "completed")
         return True
 
     def run_profile_autonomous_cycle(self, profile: Dict[str, Any]) -> Dict[str, Any]:

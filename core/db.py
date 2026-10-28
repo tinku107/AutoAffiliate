@@ -53,6 +53,16 @@ def init_db():
     except Exception:
         pass
 
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN is_pulled INTEGER DEFAULT 0")
+    except Exception:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE products ADD COLUMN pulled_at TIMESTAMP")
+    except Exception:
+        pass
+
     # 2. Posts Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS posts (
@@ -135,11 +145,34 @@ def save_product(product: Dict[str, Any]) -> int:
     imgs = product.get("image_urls") or ([product.get("image_url")] if product.get("image_url") else [])
     imgs_json = json.dumps(imgs)
 
+    p_id = product.get("product_id")
+    existing_pulled = 0
+    existing_status = None
+    existing_pulled_at = None
+    if p_id:
+        try:
+            cursor.execute("SELECT is_pulled, status, pulled_at FROM products WHERE product_id = ?", (p_id,))
+            row = cursor.fetchone()
+            if row:
+                existing_pulled = row["is_pulled"] or 0
+                existing_status = row["status"]
+                existing_pulled_at = row["pulled_at"]
+        except Exception:
+            pass
+
+    # Preserve pulled status so repeated scraping never resets a pulled item to 'scouted'
+    if existing_status in ["pulled", "content_created", "discarded", "published"]:
+        final_status = existing_status
+        final_pulled = 1 if existing_status != "discarded" else 0
+    else:
+        final_status = product.get("status", "scouted")
+        final_pulled = 1 if final_status in ["pulled", "content_created"] else (product.get("is_pulled", 0) or existing_pulled)
+
     cursor.execute("""
     INSERT OR REPLACE INTO products (
         product_id, platform, title, category, original_price, deal_price,
-        discount_pct, rating, reviews_count, image_url, image_urls, source_url, affiliate_url, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        discount_pct, rating, reviews_count, image_url, image_urls, source_url, affiliate_url, status, is_pulled, pulled_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         product.get("product_id"),
         product.get("platform", "Amazon"),
@@ -154,12 +187,59 @@ def save_product(product: Dict[str, Any]) -> int:
         imgs_json,
         product.get("source_url", ""),
         product.get("affiliate_url", ""),
-        product.get("status", "scouted")
+        final_status,
+        final_pulled,
+        existing_pulled_at
     ))
     conn.commit()
     pid = cursor.lastrowid
     conn.close()
     return pid
+
+
+def mark_product_pulled(product_id: Optional[str] = None, db_id: Optional[int] = None):
+    """Flags a product as pulled with timestamp to guarantee it is NEVER pulled again."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now = datetime.now()
+    if db_id:
+        cursor.execute("""
+            UPDATE products 
+            SET is_pulled = 1, status = 'pulled', pulled_at = COALESCE(pulled_at, ?) 
+            WHERE id = ?
+        """, (now, db_id))
+    if product_id:
+        cursor.execute("""
+            UPDATE products 
+            SET is_pulled = 1, status = 'pulled', pulled_at = COALESCE(pulled_at, ?) 
+            WHERE product_id = ?
+        """, (now, product_id))
+    conn.commit()
+    conn.close()
+
+
+def get_pulled_product_ids() -> set:
+    """Returns set of all product IDs that have ever been pulled, used in posts, or created."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT DISTINCT product_id FROM products 
+        WHERE (is_pulled = 1 OR status IN ('pulled', 'content_created', 'published', 'archived')
+               OR id IN (SELECT DISTINCT product_id FROM posts WHERE product_id IS NOT NULL))
+          AND product_id IS NOT NULL AND product_id != ''
+    """)
+    rows = [r[0] for r in cursor.fetchall() if r[0]]
+    conn.close()
+    return set(rows)
+
+
+def clear_pulled_history():
+    """Resets pulled flags (for manual testing reset if desired)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE products SET is_pulled = 0, status = 'scouted' WHERE status = 'pulled'")
+    conn.commit()
+    conn.close()
 
 
 def get_products(status: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:

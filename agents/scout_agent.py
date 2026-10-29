@@ -19,7 +19,7 @@ class ScoutAgent:
         self,
         category: str = "all",
         query: Optional[str] = None,
-        platform: str = "auto",
+        platform: str = "amazon",
         count: int = 5,
         target_profit: float = 500.0
     ) -> List[Dict[str, Any]]:

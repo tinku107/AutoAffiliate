@@ -593,80 +593,36 @@ class ProductScraper:
         return self.scrape_flipkart_search(query=q, limit=limit)
 
     # =========================================================================
-    # UNIFIED SCRAPER WITH FAILOVER & AUTO-INTERLEAVING
+    # UNIFIED SCRAPER - EXCLUSIVELY AMAZON INDIA ONLY
     # =========================================================================
     def scrape_unified_deals(
         self,
-        platform: str = "auto",
+        platform: str = "amazon",
         category: str = "all",
         query: Optional[str] = None,
         limit: int = 10
     ) -> List[Dict[str, Any]]:
         """
         Unified live deals scraper.
-        - platform: 'auto' (Amazon + Flipkart + EarnKaro), 'earnkaro', 'amazon', 'flipkart', 'myntra', 'nykaa'
-        - If any platform is throttled/blocked, automatically falls back to active stores so testing never fails.
+        Focus: 100% Amazon India only (EarnKaro and multi-store scrapers disabled upon user request).
         """
-        platform_lower = platform.lower()
+        platform_lower = (platform or "amazon").lower()
 
-        # 1. EARNKARO MULTI-STORE PARTNER NETWORK (Flipkart, Myntra, Nykaa, Ajio 150+ Brands)
-        if platform_lower in ["earnkaro", "ek"]:
-            items = self.scrape_flipkart_search(query=query, limit=limit) if query else self.scrape_flipkart_bestsellers(category=category, limit=limit)
-            for it in items:
-                it["platform"] = "EarnKaro"
-            if not items:
-                items = self.scrape_amazon_search(query=query, limit=limit) if query else self.scrape_amazon_bestsellers(category=category, limit=limit)
-                for it in items:
-                    it["platform"] = "EarnKaro (Partner)"
-            return items
+        # Flipkart only if explicitly requested
+        if platform_lower == "flipkart":
+            return self.scrape_flipkart_search(query=query, limit=limit) if query else self.scrape_flipkart_bestsellers(category=category, limit=limit)
 
-        # 2. MYNTRA (via EarnKaro)
-        elif platform_lower == "myntra":
-            q = f"myntra {query}" if query else f"{category} dresses fashion"
-            items = self.scrape_flipkart_search(query=q, limit=limit)
-            for it in items:
-                it["platform"] = "EarnKaro (Myntra)"
-            return items
+        # 100% Amazon India for all queries, auto mode, or legacy partner categories
+        amz_items = self.scrape_amazon_search(query=query, limit=limit) if query else self.scrape_amazon_bestsellers(category=category, limit=limit)
+        if not amz_items and category != "all":
+            # Fallback to general Amazon search rather than external networks
+            fallback_q = f"bestselling {category} deals"
+            amz_items = self.scrape_amazon_search(query=fallback_q, limit=limit)
 
-        # 3. NYKAA (via EarnKaro)
-        elif platform_lower == "nykaa":
-            q = f"nykaa {query}" if query else "beauty skincare serum"
-            items = self.scrape_flipkart_search(query=q, limit=limit)
-            for it in items:
-                it["platform"] = "EarnKaro (Nykaa)"
-            return items
+        for it in amz_items:
+            it["platform"] = "Amazon"
 
-        # 4. FLIPKART ONLY
-        elif platform_lower == "flipkart":
-            items = self.scrape_flipkart_search(query=query, limit=limit) if query else self.scrape_flipkart_bestsellers(category=category, limit=limit)
-            if not items:
-                print("Flipkart empty, falling back to Amazon")
-                items = self.scrape_amazon_search(query=query, limit=limit) if query else self.scrape_amazon_bestsellers(category=category, limit=limit)
-            return items
-
-        # 5. AMAZON ONLY
-        elif platform_lower == "amazon":
-            items = self.scrape_amazon_search(query=query, limit=limit) if query else self.scrape_amazon_bestsellers(category=category, limit=limit)
-            if not items:
-                print("Amazon throttled/empty, auto-failing over to Flipkart live deals")
-                items = self.scrape_flipkart_search(query=query or category, limit=limit)
-            return items
-
-        # 6. AUTO: INTERLEAVE ALL PLATFORMS
-        else:
-            half = max(2, limit // 2)
-            amz_items = self.scrape_amazon_search(query=query, limit=half) if query else self.scrape_amazon_bestsellers(category=category, limit=half)
-            fk_items = self.scrape_flipkart_search(query=query, limit=half) if query else self.scrape_flipkart_bestsellers(category=category, limit=half)
-
-            combined = []
-            max_len = max(len(amz_items), len(fk_items))
-            for i in range(max_len):
-                if i < len(amz_items):
-                    combined.append(amz_items[i])
-                if i < len(fk_items):
-                    combined.append(fk_items[i])
-
-            return combined[:limit] if combined else (amz_items or fk_items)
+        return amz_items
 
     def fetch_product_by_url(self, url: str) -> Optional[Dict[str, Any]]:
         """Extracts product details and pictures from Amazon, Flipkart, Myntra, Nykaa, Ajio, Meesho, or ANY custom URL."""

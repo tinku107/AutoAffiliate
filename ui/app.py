@@ -1411,7 +1411,7 @@ elif nav_selection == "⚡ Live Product Sandbox":
     st.subheader("⚡ Instant Live Product Test Sandbox")
     st.markdown("""
     Test and curate live deals on demand:
-    1. **Platform Sources:** Sourced directly from **EarnKaro** (150+ stores like Myntra & Nykaa), Amazon India, or Flipkart.
+    1. **Platform Source:** Sourced exclusively from **Amazon India** with official associate referral tags (`amzn.to`).
     2. **Product Approval & Removal:** If you dislike any product, click **🗑️ Discard & Remove** to permanently blacklist it.
     3. **Autopilot Autonomy:** When 24/7 Autopilot is running, it autonomously selects the top deals while strictly respecting your discarded list.
     4. **Humanoid Copy:** Generated with zero emojis and zero special characters; hero slide showcases the dedicated Elena avatar.
@@ -1421,14 +1421,11 @@ elif nav_selection == "⚡ Live Product Sandbox":
     with t_plat:
         test_platform = st.selectbox(
             "Platform Source",
-            ["auto", "earnkaro", "amazon", "flipkart", "myntra", "nykaa"],
+            ["amazon", "flipkart"],
+            index=0,
             format_func=lambda x: {
-                "auto": "⚡ Auto (All Platforms)",
-                "earnkaro": "💎 EarnKaro (150+ Stores)",
-                "amazon": "📦 Amazon India",
-                "flipkart": "🛍️ Flipkart",
-                "myntra": "👗 Myntra (via EarnKaro)",
-                "nykaa": "💄 Nykaa (via EarnKaro)"
+                "amazon": "📦 Amazon India (Official)",
+                "flipkart": "🛍️ Flipkart"
             }.get(x, x)
         )
     with t_cat_col:

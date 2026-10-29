@@ -437,7 +437,7 @@ class AgentOrchestrator:
         self,
         category: str = "all",
         query: Optional[str] = None,
-        platform: str = "auto",
+        platform: str = "amazon",
         **kwargs
     ) -> Dict[str, Any]:
         """

@@ -1841,7 +1841,7 @@ elif nav_selection == "💬 Grok Command Console":
 
         with st.chat_message("assistant", avatar="⚡"):
             with st.spinner("Bot team working..."):
-                result = st.session_state.orchestrator.process_chat_command(user_prompt)
+                result = st.session_state.orchestrator.process_chat_command(user_prompt, history=st.session_state.chat_messages[:-1])
                 st.markdown(f"**[{result['agent']}]:**\n\n{result['response']}")
                 st.session_state.chat_messages.append({
                     "role": "assistant",
